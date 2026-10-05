@@ -257,3 +257,19 @@ async def test_history_only_contains_what_the_caller_heard(
     await runtime.pipeline.handle_turn("c1", "t2", b"two")
     # t1 was completed on replay, but the caller only ever heard the fallback
     assert [m.content for m in llm.seen[-1][1:]] == ["caller said two"]
+
+
+async def test_failed_write_ahead_still_plays_the_fallback(
+    rt: tuple[Runtime, FakeStt, FakeLlm, FakeTts], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runtime, stt, _, _ = rt
+
+    async def broken_begin(*args: Any, **kwargs: Any) -> bool:
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(runtime.store, "begin_turn", broken_begin)
+    result = await runtime.pipeline.handle_turn("c1", "t1", b"x")
+    assert result.status is TurnStatus.DEGRADED
+    assert result.error_kind == "storage_unavailable"
+    assert result.audio == runtime.pipeline.fallbacks[Action.RETRY_PROMPT].audio
+    assert stt.calls == 0  # nothing is processed that could not be recorded

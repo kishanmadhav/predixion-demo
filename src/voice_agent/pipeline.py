@@ -122,7 +122,28 @@ class TurnPipeline:
     async def handle_turn(self, call_id: str, turn_id: str, audio: bytes) -> TurnResult:
         started = self._clock()
         request = {"audio_b64": base64.b64encode(audio).decode("ascii")}
-        if not await self.store.begin_turn(call_id, turn_id, request):
+        try:
+            is_new = await self.store.begin_turn(call_id, turn_id, request)
+        except Exception:
+            # Storage is down: don't process a turn we cannot record, but don't drop the
+            # call either. This is the one case with no record; it is logged loudly.
+            log.exception(
+                "could not write ahead turn %s/%s; playing the fallback", call_id, turn_id
+            )
+            prompt = self.fallbacks[Action.RETRY_PROMPT]
+            self.metrics.turns.labels("unrecorded").inc()
+            return TurnResult(
+                call_id=call_id,
+                turn_id=turn_id,
+                status=TurnStatus.DEGRADED,
+                action=Action.RETRY_PROMPT,
+                reply_text=prompt.text,
+                audio=prompt.audio,
+                failed_stage="storage",
+                error_kind="storage_unavailable",
+                duration_ms=round((self._clock() - started) * 1000, 1),
+            )
+        if not is_new:
             return await self._duplicate(call_id, turn_id)
 
         outcome: ProcessedTurn | TurnFailedError

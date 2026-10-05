@@ -80,6 +80,14 @@ CREATE INDEX IF NOT EXISTS dead_letters_status ON dead_letters (status);
 
 DEAD_LETTER_STATUSES = ("pending", "replaying", "resolved")
 
+# Bumped whenever SCHEMA changes; `_migrate` brings older databases forward.
+SCHEMA_VERSION = 2
+# Columns added after version 1, by table: (name, declaration).
+_ADDED_COLUMNS = {
+    "turns": [("action", "TEXT")],
+    "dead_letters": [("claimed_at", "TEXT")],
+}
+
 
 class TurnStatus(StrEnum):
     IN_PROGRESS = "in_progress"
@@ -211,17 +219,39 @@ class Store:
         if str(path) != ":memory:":
             Path(path).parent.mkdir(parents=True, exist_ok=True)
         conn = await aiosqlite.connect(str(path), isolation_level=None)
-        conn.row_factory = aiosqlite.Row
-        await conn.execute("PRAGMA journal_mode=WAL")
-        # FULL: a committed dead letter survives power loss, not just a process crash.
-        await conn.execute("PRAGMA synchronous=FULL")
-        await conn.execute("PRAGMA foreign_keys=ON")
-        await conn.execute("PRAGMA busy_timeout=2000")  # the CLI may write concurrently
-        await conn.executescript(SCHEMA)
+        try:
+            conn.row_factory = aiosqlite.Row
+            await conn.execute("PRAGMA journal_mode=WAL")
+            # FULL: a committed dead letter survives power loss, not just a process crash.
+            await conn.execute("PRAGMA synchronous=FULL")
+            await conn.execute("PRAGMA foreign_keys=ON")
+            await conn.execute("PRAGMA busy_timeout=2000")  # the CLI may write concurrently
+            await cls._migrate(conn)
+        except BaseException:
+            await conn.close()  # an open aiosqlite thread would keep the process alive
+            raise
         return cls(conn)
 
+    @staticmethod
+    async def _migrate(conn: aiosqlite.Connection) -> None:
+        async with conn.execute("PRAGMA user_version") as cur:
+            row = await cur.fetchone()
+        version = row[0] if row else 0
+        if version < SCHEMA_VERSION:
+            for table, columns in _ADDED_COLUMNS.items():
+                async with conn.execute(f"PRAGMA table_info({table})") as cur:
+                    existing = {r[1] for r in await cur.fetchall()}
+                if not existing:
+                    continue  # table does not exist yet; SCHEMA creates it complete
+                for name, decl in columns:
+                    if name not in existing:
+                        await conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
+        await conn.executescript(SCHEMA)
+        await conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+
     async def close(self) -> None:
-        await self._conn.close()
+        async with self._lock:  # let an in-flight (shielded) write finish first
+            await self._conn.close()
 
     # -- plumbing -------------------------------------------------------------
 
@@ -240,11 +270,12 @@ class Store:
         await self._conn.execute("BEGIN IMMEDIATE")
         try:
             yield
+            await self._conn.execute("COMMIT")
         except BaseException:
+            # Also covers a failed COMMIT: never leave the shared connection mid-transaction.
             if self._conn.in_transaction:
                 await self._conn.execute("ROLLBACK")
             raise
-        await self._conn.execute("COMMIT")
 
     async def _one(self, sql: str, params: tuple[Any, ...]) -> aiosqlite.Row | None:
         async with self._conn.execute(sql, params) as cur:

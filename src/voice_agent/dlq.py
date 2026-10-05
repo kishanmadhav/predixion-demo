@@ -29,18 +29,9 @@ log = logging.getLogger(__name__)
 
 ReplayStatus = Literal["resolved", "failed", "not_replayable", "not_found", "skipped"]
 
-# Failure kinds that say "the provider is unhealthy", as opposed to "this entry is bad".
-PROVIDER_HEALTH_KINDS = frozenset(
-    {
-        "timeout",
-        "connection",
-        "rate_limited",
-        "server_error",
-        "malformed",
-        "circuit_open",
-        "deadline",
-    }
-)
+# Replay failures that are about one entry, not about the providers or configuration.
+# Any other failure stops a bulk replay: it would affect every entry the same way.
+ENTRY_SPECIFIC_KINDS = frozenset({"bad_payload"})
 
 
 @dataclass(frozen=True)
@@ -70,11 +61,14 @@ class DeadLetterService:
         self._clock = clock
 
     async def replay(self, dlq_id: int) -> ReplayOutcome:
+        existing = await self._store.get_dead_letter(dlq_id)
+        if existing is None:
+            return ReplayOutcome(dlq_id, "not_found")
+        if existing.status != "pending":
+            return ReplayOutcome(dlq_id, "not_replayable", error=f"status is {existing.status!r}")
         blocked = self._pipeline.open_circuits()
         if blocked:
             # Don't claim (or charge a replay to) an entry that would fail fast anyway.
-            if await self._store.get_dead_letter(dlq_id) is None:
-                return ReplayOutcome(dlq_id, "not_found")
             return self._done(
                 ReplayOutcome(
                     dlq_id,
@@ -85,11 +79,8 @@ class DeadLetterService:
             )
 
         entry = await self._store.claim_dead_letter(dlq_id)
-        if entry is None:
-            existing = await self._store.get_dead_letter(dlq_id)
-            if existing is None:
-                return ReplayOutcome(dlq_id, "not_found")
-            return ReplayOutcome(dlq_id, "not_replayable", error=f"status is {existing.status!r}")
+        if entry is None:  # another worker claimed it between our read and our claim
+            return ReplayOutcome(dlq_id, "not_replayable", error="claimed by another replay")
         # Shielded: once claimed, the entry always ends resolved or released, even if
         # the request that started the replay is cancelled.
         return await asyncio.shield(self._replay_claimed(entry))
@@ -156,12 +147,11 @@ class DeadLetterService:
     ) -> list[ReplayOutcome]:
         """Replay up to `limit` pending entries, oldest first, respecting backpressure.
 
-        The first entry is replayed alone as a canary, and so is every entry while any
+        Entries are replayed one at a time until one resolves (a canary) and while any
         circuit is not fully closed (e.g. half-open right after an outage): a half-open
         breaker admits only a few probes, and flooding it would just bounce entries back.
-        If a replay is deferred or fails for a provider-health reason, the provider is
-        still unhealthy, so the rest are `skipped` (left pending, untouched); a failure
-        specific to one entry, like an unusable payload, does not stop the batch.
+        If a replay is deferred or fails for any reason other than its own bad payload,
+        the rest are `skipped` (left pending, untouched).
         Once every circuit is closed, the remainder runs `concurrency` at a time.
         Claims are atomic, so overlapping workers cannot double-replay an entry.
         Results keep DLQ order.
@@ -169,15 +159,16 @@ class DeadLetterService:
         ids = [e.id for e in await self._store.list_dead_letters(status="pending", limit=limit)]
         results: list[ReplayOutcome] = []
 
-        # The first replay is always a lone canary: a process whose breakers have not
-        # seen any traffic yet (the CLI) cannot tell an ongoing outage from health.
-        canary = True
-        while ids and (canary or not self._pipeline.circuits_closed()):
-            canary = False
+        # One at a time until a replay has resolved *and* every circuit is closed: a
+        # process whose breakers have seen no traffic yet (the CLI) cannot tell an
+        # ongoing outage from health, so the first successful replay is the proof.
+        proven = False
+        while ids and not (proven and self._pipeline.circuits_closed()):
             outcome = await self.replay(ids.pop(0))
             results.append(outcome)
+            proven = proven or outcome.status == "resolved"
             unhealthy = outcome.status == "skipped" or (
-                outcome.status == "failed" and outcome.error_kind in PROVIDER_HEALTH_KINDS
+                outcome.status == "failed" and outcome.error_kind not in ENTRY_SPECIFIC_KINDS
             )
             if unhealthy:
                 reason = "provider still unhealthy"

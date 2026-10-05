@@ -126,6 +126,21 @@ async def open_runtime(
     may be running: only the service may reclaim in-flight work.
     """
     store = await Store.open(settings.db_path)
+    try:
+        return await _wire(settings, store, providers=providers, client=client, recover=recover)
+    except BaseException:
+        await store.close()
+        raise
+
+
+async def _wire(
+    settings: Settings,
+    store: Store,
+    *,
+    providers: Providers | None,
+    client: httpx.AsyncClient | None,
+    recover: bool,
+) -> Runtime:
     recovered = await store.recover() if recover else []
     metrics = Metrics()
     for _ in recovered:

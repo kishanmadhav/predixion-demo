@@ -87,10 +87,10 @@ never starts an attempt with < 50 ms of budget left. Per-attempt timeout =
 **Breaker:** count-based rolling window of the last 50 counted outcomes, `minimum_calls=20`,
 trips (on a failure) at failure rate ≥ 60%. Chosen by simulating the breaker: at 50% it
 false-tripped in 0.5% of 3,000-attempt runs at the baseline 20% flakiness (mostly during
-warm-up); at 60% there were no trips in ~30M attempts, and a real outage still trips it
-within 27 attempts.
-Open for `open_seconds=5`, then half-open admits up to 5 probes; when all 5 finish, failure rate
-< 50% → closed (window reset), else → open again. Probes beyond the limit are rejected.
+warm-up); at 60% the false-trip risk is ~1e-4 per breaker warm-up and none were seen in
+~30M steady-state attempts, and a real outage still trips it within 27 attempts.
+Open for `open_seconds=5`, then half-open admits up to 5 probes, and the outcome is
+decided by majority as results arrive (≥ 60% of the probe limit failing → open again, more than 40% succeeding → closed with the window reset). Probes beyond the limit are rejected.
 One breaker per stage, so a TTS outage does not block STT.
 
 ## Degradation and compliance

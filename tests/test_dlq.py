@@ -317,3 +317,48 @@ async def test_bulk_replay_from_a_fresh_process_sends_one_canary_first(tmp_path:
 
     assert [o.status for o in outcomes] == ["failed", "skipped", "skipped"]
     assert llm.calls - calls == settings.retry_max_attempts  # just the canary's attempts
+
+
+async def test_canary_must_resolve_before_replays_fan_out(tmp_path: Path) -> None:
+    providers, _, llm, _ = fake_providers()
+    settings = fast_settings(tmp_path, breaker_minimum_calls=10, breaker_window=10)
+    service = await open_runtime(settings, providers=providers)
+    await service.store.begin_turn("bad", "t1", {"audio_b64": "!!not base64!!"})
+    await service.store.degrade_turn(
+        "bad",
+        "t1",
+        failed_stage="stt",
+        error_kind="timeout",
+        error_detail="x",
+        attempts=[],
+        partial={},
+    )
+    llm.failing = True
+    for i in range(5):
+        await service.pipeline.handle_turn(f"c{i}", "t1", b"x")
+    await service.close()
+
+    cli = await open_runtime(settings, providers=providers, recover=False)
+    calls = llm.calls
+    outcomes = await cli.dlq.replay_pending(limit=10, concurrency=8)
+    await cli.close()
+
+    # the bad payload proves nothing about provider health, so the next replay is
+    # still a lone canary; it fails, and the rest are skipped untouched
+    assert [o.status for o in outcomes] == ["failed", "failed"] + ["skipped"] * 4
+    assert llm.calls - calls == settings.retry_max_attempts
+
+
+async def test_replay_reports_status_before_circuit_state(
+    rt: tuple[Runtime, FakeStt, FakeLlm, FakeTts],
+) -> None:
+    runtime, _, llm, _ = rt
+    llm.fail_next = 3
+    first = await runtime.pipeline.handle_turn("c0", "t1", b"x")
+    assert first.dlq_id is not None
+    assert (await runtime.dlq.replay(first.dlq_id)).status == "resolved"
+    llm.failing = True
+    for i in range(3):
+        await runtime.pipeline.handle_turn(f"c{i + 1}", "t1", b"x")
+    assert runtime.pipeline.open_circuits() == ["llm"]
+    assert (await runtime.dlq.replay(first.dlq_id)).status == "not_replayable"
