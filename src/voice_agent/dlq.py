@@ -27,7 +27,7 @@ from voice_agent.store import Store
 
 log = logging.getLogger(__name__)
 
-ReplayStatus = Literal["resolved", "failed", "not_replayable", "not_found"]
+ReplayStatus = Literal["resolved", "failed", "not_replayable", "not_found", "skipped"]
 
 
 @dataclass(frozen=True)
@@ -95,9 +95,37 @@ class DeadLetterService:
             )
         )
 
-    async def replay_pending(self, *, limit: int = 100) -> list[ReplayOutcome]:
-        entries = await self._store.list_dead_letters(status="pending", limit=limit)
-        return [await self.replay(entry.id) for entry in entries]
+    async def replay_pending(
+        self, *, limit: int = 100, concurrency: int = 8
+    ) -> list[ReplayOutcome]:
+        """Replay up to `limit` pending entries, oldest first, respecting backpressure.
+
+        While any circuit is not fully closed (e.g. half-open right after an outage),
+        entries are replayed one at a time: a half-open breaker admits only a few
+        probes, and flooding it would just bounce entries back. If one of those
+        replays fails, the provider is still unhealthy, so the rest are `skipped`
+        (left pending, untouched). Once every circuit is closed, the remainder runs
+        `concurrency` at a time. Claims are atomic, so overlapping workers cannot
+        double-replay an entry. Results keep DLQ order.
+        """
+        ids = [e.id for e in await self._store.list_dead_letters(status="pending", limit=limit)]
+        results: list[ReplayOutcome] = []
+
+        while ids and not self._pipeline.circuits_closed():
+            outcome = await self.replay(ids.pop(0))
+            results.append(outcome)
+            if outcome.status == "failed":
+                return results + [ReplayOutcome(i, "skipped") for i in ids]
+
+        sem = asyncio.Semaphore(max(1, concurrency))
+
+        async def bounded(dlq_id: int) -> ReplayOutcome:
+            async with sem:
+                if not self._pipeline.circuits_closed():
+                    return ReplayOutcome(dlq_id, "skipped")
+                return await self.replay(dlq_id)
+
+        return results + list(await asyncio.gather(*(bounded(i) for i in ids)))
 
     def _done(self, outcome: ReplayOutcome) -> ReplayOutcome:
         self._metrics.replays.labels(outcome.status).inc()

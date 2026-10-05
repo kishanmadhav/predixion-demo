@@ -112,6 +112,60 @@ async def test_replay_pending_processes_every_pending_entry(
     assert (await runtime.store.dead_letter_counts())["pending"] == 0
 
 
+async def test_replay_pending_runs_replays_concurrently(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    providers, _, llm, _ = fake_providers()
+    # A breaker that will not trip, so this test measures concurrency only.
+    settings = fast_settings(tmp_path, breaker_window=100, breaker_minimum_calls=100)
+    runtime = await open_runtime(settings, providers=providers)
+    for i in range(6):
+        llm.fail_next = 3
+        await runtime.pipeline.handle_turn(f"c{i}", "t1", b"x")
+
+    real_transcribe = runtime.providers.stt.transcribe
+
+    async def slow_transcribe(audio: bytes) -> str:
+        await asyncio.sleep(0.2)
+        return await real_transcribe(audio)
+
+    monkeypatch.setattr(runtime.providers.stt, "transcribe", slow_transcribe)
+    loop = asyncio.get_running_loop()
+    started = loop.time()
+    outcomes = await runtime.dlq.replay_pending(limit=10, concurrency=6)
+    elapsed = loop.time() - started
+    await runtime.close()
+
+    assert [o.status for o in outcomes] == ["resolved"] * 6
+    assert elapsed < 0.6  # sequential would take >= 1.2s
+
+
+async def test_bulk_replay_stops_early_while_the_provider_is_still_down(
+    rt: tuple[Runtime, FakeStt, FakeLlm, FakeTts],
+) -> None:
+    runtime, _, llm, _ = rt
+    llm.failing = True
+    for i in range(4):
+        await runtime.pipeline.handle_turn(f"c{i}", "t1", b"x")
+
+    outcomes = await runtime.dlq.replay_pending(limit=10)
+
+    assert [o.status for o in outcomes] == ["failed", "skipped", "skipped", "skipped"]
+    entries = await runtime.store.list_dead_letters(status="pending")
+    assert [e.replay_count for e in entries] == [1, 0, 0, 0]  # skipped ones untouched
+
+
+async def test_concurrent_replays_of_the_same_entry_run_it_once(
+    rt: tuple[Runtime, FakeStt, FakeLlm, FakeTts],
+) -> None:
+    runtime, _, llm, _ = rt
+    llm.fail_next = 3
+    failed = await runtime.pipeline.handle_turn("c1", "t1", b"x")
+    assert failed.dlq_id is not None
+    outcomes = await asyncio.gather(*(runtime.dlq.replay(failed.dlq_id) for _ in range(3)))
+    assert sorted(o.status for o in outcomes) == ["not_replayable", "not_replayable", "resolved"]
+
+
 async def test_interrupted_turns_are_replayable(tmp_path: Path) -> None:
     providers, *_ = fake_providers()
     settings = fast_settings(tmp_path)

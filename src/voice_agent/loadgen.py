@@ -180,15 +180,22 @@ async def chaos_demo(url: str, mock_url: str, *, outage_s: float = 12.0) -> None
                 await snapshot(f"outage t+{outage_s - (deadline - time.monotonic()):.0f}s")
             await asyncio.sleep(1.0)
 
-        print("3) Outage over. Breaker half-opens, probes succeed, it closes.")
-        await asyncio.sleep(1.0)
-        for i in range(4):
+        print(
+            "3) Outage over. After its cool-down the breaker half-opens, a few probe "
+            "requests succeed, and it closes."
+        )
+        started = time.monotonic()
+        while time.monotonic() - started < 30:
             await run_load(client, calls=5, turns_per_call=1, concurrency=5)
-            await snapshot(f"recovery {i + 1}")
-            await asyncio.sleep(1.5)
+            await snapshot(f"recovery t+{time.monotonic() - started:.0f}s")
+            breakers = (await client.get("/health")).json()["breakers"]
+            if all(b["state"] == "closed" for b in breakers.values()):
+                break
+            await asyncio.sleep(1.0)
 
         print("4) Replay the dead-letter queue now that the provider is healthy.")
-        replay = (await client.post("/v1/dlq/replay", params={"limit": 1000})).json()
+        response = await client.post("/v1/dlq/replay", params={"limit": 1000}, timeout=300)
+        replay = response.json()
         outcomes = Counter(o["status"] for o in replay["results"])
         print(f"   replay results: {dict(outcomes)}")
         await snapshot("after replay")

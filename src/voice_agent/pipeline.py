@@ -26,6 +26,7 @@ from voice_agent.fallback import Action, FallbackPrompt
 from voice_agent.metrics import Metrics
 from voice_agent.providers.base import ChatMessage
 from voice_agent.providers.factory import Providers
+from voice_agent.resilience.breaker import BreakerState
 from voice_agent.resilience.stage import AttemptRecord, ResilientStage, StageFailedError
 from voice_agent.store import Store, Turn, TurnStatus
 
@@ -108,6 +109,9 @@ class TurnPipeline:
         self.metrics = metrics
         self.fallbacks = fallbacks
         self._clock = clock
+
+    def circuits_closed(self) -> bool:
+        return all(s.breaker.state is BreakerState.CLOSED for s in self.stages.values())
 
     # -- live turns ---------------------------------------------------------
 
