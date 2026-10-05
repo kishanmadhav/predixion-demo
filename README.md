@@ -13,7 +13,7 @@ A local mock provider stands in for STT/LLM/TTS. It adds realistic latency, fail
 | Resilience layer: retries, backoff, circuit breaking | [`resilience/`](src/voice_agent/resilience), [§ Failure handling](#failure-handling) |
 | Dead letters that can be inspected and replayed | [`store.py`](src/voice_agent/store.py), [`dlq.py`](src/voice_agent/dlq.py), [§ Dead-letter queue](#dead-letter-queue) |
 | Model-agnostic dependency boundary | [`providers/`](src/voice_agent/providers), plus [`docker-compose.openweight.yml`](docker-compose.openweight.yml) for the open-weight stack |
-| Half-page cost write-up **and** one paragraph on swapping the mock for an open-weight model | **[`docs/writeup.pdf`](docs/writeup.pdf)** (one page); cost figures computed by [`cost/fargate_cost.py`](cost/fargate_cost.py) |
+| Half-page cost write-up **and** one paragraph on swapping the mock for an open-weight model | Submitted separately as a one-page PDF. Its cost figures are computed by [`cost/fargate_cost.py`](cost/fargate_cost.py) (`uv run python -m cost.fargate_cost`); [`docs/writeup_pdf.py`](docs/writeup_pdf.py) rebuilds it with `uv run --with reportlab python docs/writeup_pdf.py` |
 | No hardcoded secrets | Keys come only from env (`SecretStr`, no defaults); [`.env.example`](.env.example) is blank |
 | Runs from documented setup | [§ Quick start](#quick-start): `uv sync`, then 3 commands; or `docker compose up --build` |
 | Design spec | [`docs/superpowers/specs/…-design.md`](docs/superpowers/specs/2026-10-05-resilient-voice-agent-design.md) |

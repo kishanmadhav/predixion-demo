@@ -12,3 +12,6 @@ data/
 dist/
 build/
 *.egg-info/
+
+# The one-page write-up PDF is sent separately, not committed
+docs/writeup.pdf

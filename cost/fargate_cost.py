@@ -2,7 +2,7 @@
 
 Run:  uv run python -m cost.fargate_cost
 
-Every number in docs/writeup.pdf comes from this file (docs/writeup_pdf.py imports it).
+Every number in the write-up PDF comes from this file (docs/writeup_pdf.py imports it).
 Change an assumption below and re-run to see its effect.
 
 Prices: us-east-1, Linux, on-demand, from https://aws.amazon.com/fargate/pricing/

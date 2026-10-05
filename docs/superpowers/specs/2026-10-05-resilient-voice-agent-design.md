@@ -164,4 +164,4 @@ ruff + mypy + GitHub Actions CI.
 checked 2026-10-05) computes two configurations — (A) static fleet sized for peak, (B) baseline
 fleet + scheduled pre-warm scale-out for the daily campaign window + target tracking — from
 explicit assumptions (call duration, concurrent calls per task, utilisation target, N+1), with a
-sensitivity table and ARM/Spot notes. Write-up in `docs/writeup.pdf` (built by `docs/writeup_pdf.py`).
+sensitivity table and ARM/Spot notes. Write-up is a one-page PDF submitted separately, built by `docs/writeup_pdf.py`.
