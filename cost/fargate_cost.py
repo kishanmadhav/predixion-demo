@@ -2,8 +2,8 @@
 
 Run:  uv run python -m cost.fargate_cost
 
-Every number in docs/COST.md comes from this file. Change an assumption below and
-re-run to see its effect.
+Every number in docs/writeup.pdf comes from this file (docs/writeup_pdf.py imports it).
+Change an assumption below and re-run to see its effect.
 
 Prices: us-east-1, Linux, on-demand, from https://aws.amazon.com/fargate/pricing/
 (checked 2026-10-05). Fargate bills per second with a one-minute minimum, so

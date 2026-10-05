@@ -12,9 +12,8 @@ A local mock provider stands in for STT/LLM/TTS. It adds realistic latency, fail
 |---|---|
 | Resilience layer: retries, backoff, circuit breaking | [`resilience/`](src/voice_agent/resilience), [§ Failure handling](#failure-handling) |
 | Dead letters that can be inspected and replayed | [`store.py`](src/voice_agent/store.py), [`dlq.py`](src/voice_agent/dlq.py), [§ Dead-letter queue](#dead-letter-queue) |
-| Model-agnostic dependency boundary | [`providers/`](src/voice_agent/providers) |
-| One paragraph on swapping the mock for an open-weight model | [§ Swapping in open-weight models](#swapping-in-open-weight-models) |
-| Half-page cost write-up | [`docs/COST.md`](docs/COST.md), calculator in [`cost/fargate_cost.py`](cost/fargate_cost.py) |
+| Model-agnostic dependency boundary | [`providers/`](src/voice_agent/providers), plus [`docker-compose.openweight.yml`](docker-compose.openweight.yml) for the open-weight stack |
+| Half-page cost write-up **and** one paragraph on swapping the mock for an open-weight model | **[`docs/writeup.pdf`](docs/writeup.pdf)** (one page); cost figures computed by [`cost/fargate_cost.py`](cost/fargate_cost.py) |
 | No hardcoded secrets | Keys come only from env (`SecretStr`, no defaults); [`.env.example`](.env.example) is blank |
 | Runs from documented setup | [§ Quick start](#quick-start): `uv sync`, then 3 commands; or `docker compose up --build` |
 | Design spec | [`docs/superpowers/specs/…-design.md`](docs/superpowers/specs/2026-10-05-resilient-voice-agent-design.md) |
@@ -178,15 +177,6 @@ The same operations are available over HTTP: `GET /v1/dlq`, `GET /v1/dlq/{id}`, 
 - **CLI safety:** the CLI's `dlq replay` is safe to run while the service is running. It never runs recovery, so it can't reclaim the service's in-flight turns, and atomic claims prevent double replays.
 - **Purpose:** the live moment has passed, so a replay *completes the compliance record* (what the debtor said, what the agent would have said) and can drive a callback. It doesn't speak to the caller.
 
-## Swapping in open-weight models
-
-The resilience layer and the pipeline depend on only two things. One is the three one-method Protocols in [`providers/base.py`](src/voice_agent/providers/base.py): `transcribe(audio) -> str`, `complete(messages) -> str` and `synthesize(text) -> bytes`. The other is the `ProviderError` taxonomy. [`providers/factory.py`](src/voice_agent/providers/factory.py) is the only code that knows which adapter backs each stage, so replacing the mock with an open-weight stack is a configuration change: set `{STT,LLM,TTS}_PROVIDER=openai` and point each `*_BASE_URL` at a server that speaks the OpenAI-compatible API. Examples are [Speaches](https://speaches.ai) running faster-whisper for STT, vLLM, Ollama or llama.cpp serving Qwen or Llama for the LLM, and [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) for TTS. The [`openai_compat`](src/voice_agent/providers/openai_compat.py) adapters already build those requests and classify those servers' failures. For example, Ollama's queue-full 503 and llama.cpp's model-loading 503 are retried, but Speaches' 403 for a bad key is not. Each stage can be swapped on its own, and [`docker-compose.openweight.yml`](docker-compose.openweight.yml) runs the full open-weight stack on CPU by changing only environment variables. A model that runs in-process (say `faster_whisper.WhisperModel` called through `asyncio.to_thread`), or a server with a different API, needs one new adapter of about 40 lines that implements the Protocol and raises `ProviderError`. Retries, circuit breakers, deadlines and dead-lettering then apply to it unchanged, with no edits to `resilience/` or `pipeline.py`.
-
-What has and hasn't been verified:
-- The adapters are contract-tested against each server's documented request and response shapes ([`tests/providers/test_adapters.py`](tests/providers/test_adapters.py)).
-- The open-weight compose stack was not run here, because it needs multi-GB model downloads.
-- With real models, raise `LLM_TIMEOUT_S` and `TURN_DEADLINE_S` to match measured latency.
-
 ## Configuration
 
 Everything is set through environment variables (or `.env`). See [`.env.example`](.env.example) for the full list and its defaults. There are no secrets in the repo: API keys (`*_API_KEY`) are optional, have no default, and are held as `SecretStr` so they never appear in logs or reprs. A key is sent as `Authorization: Bearer` only when it is set. The mock reads `MOCK_FAILURE_RATE`, `MOCK_SEED`, `MOCK_LATENCY_SCALE` and `MOCK_HANG_S` from the process environment.
@@ -210,15 +200,6 @@ The mock's `POST /admin/chaos {"stage": "llm", "outage_s": 30}`, `{"failure_rate
   - During a forced outage, the provider's request count stays flat while the breaker is open.
   - The breaker half-opens and closes after recovery, and dead letters replay cleanly.
   - A hung provider is cut off by the deadline.
-
-## Cost
-
-Summary of [`docs/COST.md`](docs/COST.md). Assumptions: us-east-1 x86 on-demand, 4-minute calls, 20 calls per 1 vCPU / 2 GB task, and one spare task.
-
-| Configuration | $/month |
-|---|---:|
-| A. Static fleet sized for peak (11 tasks, 24×7) | $396 |
-| **B. 3 tasks + scheduled scale-out to 11 for the campaign window (recommended)** | **$138** |
 
 ## Production notes and next steps
 
