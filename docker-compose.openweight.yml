@@ -1,0 +1,52 @@
+# Run the same service against open-weight models instead of the mock:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.openweight.yml up --build
+#   docker compose exec ollama ollama pull qwen2.5:1.5b
+#   curl -X POST http://localhost:8000/v1/models/Systran/faster-whisper-small
+#
+# STT: Speaches (faster-whisper)    LLM: Ollama    TTS: Kokoro-FastAPI
+# All three speak the OpenAI-compatible API; only environment variables change.
+# CPU images are used so no GPU is required; expect multi-second LLM latency on CPU,
+# hence the larger timeouts. Send real WAV audio to /v1/calls/{id}/turns.
+services:
+  speaches:
+    image: ghcr.io/speaches-ai/speaches:latest-cpu
+    ports: ["8000:8000"]
+    volumes: ["hf-cache:/home/ubuntu/.cache/huggingface/hub"]
+
+  ollama:
+    image: ollama/ollama
+    ports: ["11434:11434"]
+    volumes: ["ollama:/root/.ollama"]
+
+  kokoro:
+    image: ghcr.io/remsky/kokoro-fastapi-cpu:latest
+    ports: ["8880:8880"]
+
+  agent:
+    environment:
+      STT_PROVIDER: openai
+      STT_BASE_URL: http://speaches:8000/v1
+      STT_MODEL: Systran/faster-whisper-small
+      STT_TIMEOUT_S: "10"
+      LLM_PROVIDER: openai
+      LLM_BASE_URL: http://ollama:11434/v1
+      LLM_MODEL: qwen2.5:1.5b
+      LLM_TIMEOUT_S: "20"
+      TTS_PROVIDER: openai
+      TTS_BASE_URL: http://kokoro:8880/v1
+      TTS_MODEL: kokoro
+      TTS_VOICE: af_bella
+      TTS_TIMEOUT_S: "15"
+      TURN_DEADLINE_S: "45"
+    depends_on:
+      speaches:
+        condition: service_started
+      ollama:
+        condition: service_started
+      kokoro:
+        condition: service_started
+
+volumes:
+  hf-cache:
+  ollama:

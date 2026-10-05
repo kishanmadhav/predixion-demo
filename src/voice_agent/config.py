@@ -62,7 +62,7 @@ class Settings(BaseSettings):
     # LLM
     llm_provider: ProviderKind = "mock"
     llm_base_url: str = "http://127.0.0.1:9000/v1"
-    llm_model: str = "qwen2.5:1.5b-instruct"
+    llm_model: str = "qwen2.5:1.5b"
     llm_api_key: SecretStr | None = None
     llm_timeout_s: float = Field(3.0, gt=0)
 
