@@ -12,8 +12,11 @@ A local mock provider stands in for STT/LLM/TTS. It adds realistic latency, fail
 |---|---|
 | Resilience layer: retries, backoff, circuit breaking | [`resilience/`](src/voice_agent/resilience), [§ Failure handling](#failure-handling) |
 | Dead letters that can be inspected and replayed | [`store.py`](src/voice_agent/store.py), [`dlq.py`](src/voice_agent/dlq.py), [§ Dead-letter queue](#dead-letter-queue) |
-| Model-agnostic dependency boundary | [`providers/`](src/voice_agent/providers), [§ Swapping in open-weight models](#swapping-in-open-weight-models) |
-| Cost reasoning (half page) | [`docs/COST.md`](docs/COST.md), [`cost/fargate_cost.py`](cost/fargate_cost.py) |
+| Model-agnostic dependency boundary | [`providers/`](src/voice_agent/providers) |
+| One paragraph on swapping the mock for an open-weight model | [§ Swapping in open-weight models](#swapping-in-open-weight-models) |
+| Half-page cost write-up | [`docs/COST.md`](docs/COST.md), calculator in [`cost/fargate_cost.py`](cost/fargate_cost.py) |
+| No hardcoded secrets | Keys come only from env (`SecretStr`, no defaults); [`.env.example`](.env.example) is blank |
+| Runs from documented setup | [§ Quick start](#quick-start): `uv sync`, then 3 commands; or `docker compose up --build` |
 | Design spec | [`docs/superpowers/specs/…-design.md`](docs/superpowers/specs/2026-10-05-resilient-voice-agent-design.md) |
 
 ## Quick start
@@ -177,19 +180,12 @@ The same operations are available over HTTP: `GET /v1/dlq`, `GET /v1/dlq/{id}`, 
 
 ## Swapping in open-weight models
 
-The resilience layer and pipeline depend only on three one-method Protocols in `providers/base.py` (`transcribe(audio) -> str`, `complete(messages) -> str`, `synthesize(text) -> bytes`) and on the `ProviderError` taxonomy. `providers/factory.py` is the only code that knows which adapter backs each stage.
+The resilience layer and the pipeline depend on only two things. One is the three one-method Protocols in [`providers/base.py`](src/voice_agent/providers/base.py): `transcribe(audio) -> str`, `complete(messages) -> str` and `synthesize(text) -> bytes`. The other is the `ProviderError` taxonomy. [`providers/factory.py`](src/voice_agent/providers/factory.py) is the only code that knows which adapter backs each stage, so replacing the mock with an open-weight stack is a configuration change: set `{STT,LLM,TTS}_PROVIDER=openai` and point each `*_BASE_URL` at a server that speaks the OpenAI-compatible API. Examples are [Speaches](https://speaches.ai) running faster-whisper for STT, vLLM, Ollama or llama.cpp serving Qwen or Llama for the LLM, and [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) for TTS. The [`openai_compat`](src/voice_agent/providers/openai_compat.py) adapters already build those requests and classify those servers' failures. For example, Ollama's queue-full 503 and llama.cpp's model-loading 503 are retried, but Speaches' 403 for a bad key is not. Each stage can be swapped on its own, and [`docker-compose.openweight.yml`](docker-compose.openweight.yml) runs the full open-weight stack on CPU by changing only environment variables. A model that runs in-process (say `faster_whisper.WhisperModel` called through `asyncio.to_thread`), or a server with a different API, needs one new adapter of about 40 lines that implements the Protocol and raises `ProviderError`. Retries, circuit breakers, deadlines and dead-lettering then apply to it unchanged, with no edits to `resilience/` or `pipeline.py`.
 
-To replace the mock with an open-weight stack, set `{STT,LLM,TTS}_PROVIDER=openai` and point `*_BASE_URL` at servers that speak the OpenAI-compatible API, which the main open-weight servers already expose:
-- **STT:** [Speaches](https://speaches.ai) running faster-whisper (`/v1/audio/transcriptions`).
-- **LLM:** vLLM, Ollama or llama.cpp `llama-server` serving Qwen or Llama (`/v1/chat/completions`).
-- **TTS:** [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) (`/v1/audio/speech`).
-
-The `openai_compat` adapters build those requests and classify those servers' failure codes. For example, Ollama's queue-full 503 and llama.cpp's loading 503 are retryable, while Speaches' 403 on a bad key is not. Stages can be mixed, for instance a real LLM with mock STT/TTS. [`docker-compose.openweight.yml`](docker-compose.openweight.yml) runs the whole stack on CPU with nothing but environment changes. A server with a different API, or an in-process model such as `faster_whisper.WhisperModel` run via `asyncio.to_thread`, needs one new ~40-line adapter that implements the Protocol and raises `ProviderError`. Retries, breakers, deadlines and dead-lettering then apply to it unchanged.
-
-What I verified, and what I didn't:
-- The adapters are contract-tested against the documented request and response shapes of each server (`tests/providers/test_adapters.py`).
-- I did not run the open-weight compose stack in this environment, because it needs multi-GB model downloads.
-- With real models, raise the timeouts (`LLM_TIMEOUT_S`, `TURN_DEADLINE_S`) to match measured latency.
+What has and hasn't been verified:
+- The adapters are contract-tested against each server's documented request and response shapes ([`tests/providers/test_adapters.py`](tests/providers/test_adapters.py)).
+- The open-weight compose stack was not run here, because it needs multi-GB model downloads.
+- With real models, raise `LLM_TIMEOUT_S` and `TURN_DEADLINE_S` to match measured latency.
 
 ## Configuration
 
