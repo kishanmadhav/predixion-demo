@@ -10,8 +10,12 @@ from mock_provider.app import MockConfig, create_app
 
 
 def make_client(**overrides: object) -> httpx.AsyncClient:
-    params: dict[str, object] = {"failure_rate": 0.0, "seed": 1, "latency_scale": 0.0,
-                                 "hang_s": 0.01}
+    params: dict[str, object] = {
+        "failure_rate": 0.0,
+        "seed": 1,
+        "latency_scale": 0.0,
+        "hang_s": 0.01,
+    }
     params.update(overrides)
     app = create_app(MockConfig(**params))  # type: ignore[arg-type]
     return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://mock")
@@ -121,8 +125,7 @@ async def test_same_seed_gives_same_outcomes() -> None:
     async def outcomes() -> list[int]:
         async with make_client(failure_rate=0.5, seed=9) as client:
             return [
-                (await client.post("/v1/llm", json={"messages": []})).status_code
-                for _ in range(30)
+                (await client.post("/v1/llm", json={"messages": []})).status_code for _ in range(30)
             ]
 
     assert await outcomes() == await outcomes()

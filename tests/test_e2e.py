@@ -51,8 +51,9 @@ class Harness:
         async def one(i: int) -> Any:
             async with sem:
                 audio = f"{prefix}-{i}".encode()
-                return await self.runtime.pipeline.handle_turn(f"{prefix}-call-{i % 7}",
-                                                               f"turn-{i}", audio)
+                return await self.runtime.pipeline.handle_turn(
+                    f"{prefix}-call-{i % 7}", f"turn-{i}", audio
+                )
 
         return await asyncio.gather(*(one(i) for i in range(n)))
 
@@ -91,8 +92,9 @@ async def flaky(tmp_path: Path) -> AsyncIterator[Harness]:
 @pytest.fixture
 async def outage_prone(tmp_path: Path) -> AsyncIterator[Harness]:
     config = MockConfig(failure_rate=0.0, seed=7, latency_scale=0.02, hang_s=1.0)
-    async for h in make_harness(tmp_path, config, breaker_open_s=0.3,
-                                breaker_minimum_calls=10, breaker_window=20):
+    async for h in make_harness(
+        tmp_path, config, breaker_open_s=0.3, breaker_minimum_calls=10, breaker_window=20
+    ):
         yield h
 
 
@@ -131,8 +133,9 @@ async def test_retries_are_visible_from_the_provider_side(flaky: Harness) -> Non
 async def long_outage(tmp_path: Path) -> AsyncIterator[Harness]:
     # Cool-down far longer than the test, so no half-open probes happen mid-test.
     config = MockConfig(failure_rate=0.0, seed=7, latency_scale=0.02, hang_s=1.0)
-    async for h in make_harness(tmp_path, config, breaker_open_s=60,
-                                breaker_minimum_calls=10, breaker_window=20):
+    async for h in make_harness(
+        tmp_path, config, breaker_open_s=60, breaker_minimum_calls=10, breaker_window=20
+    ):
         yield h
 
 

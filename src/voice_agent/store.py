@@ -232,8 +232,9 @@ class Store:
 
     async def list_turns(self, call_id: str) -> list[Turn]:
         async with self._lock:
-            rows = await self._all("SELECT * FROM turns WHERE call_id = ? ORDER BY rowid",
-                                   (call_id,))
+            rows = await self._all(
+                "SELECT * FROM turns WHERE call_id = ? ORDER BY rowid", (call_id,)
+            )
         return [Turn.from_row(r) for r in rows]
 
     async def complete_turn(
@@ -247,8 +248,7 @@ class Store:
             await self._conn.execute(
                 "UPDATE turns SET status = ?, result_json = ?, attempts_json = ?, updated_at = ?"
                 " WHERE call_id = ? AND turn_id = ?",
-                (TurnStatus.COMPLETED, _dumps(result), _dumps(attempts), _now(), call_id,
-                 turn_id),
+                (TurnStatus.COMPLETED, _dumps(result), _dumps(attempts), _now(), call_id, turn_id),
             )
 
     async def degrade_turn(
@@ -296,8 +296,16 @@ class Store:
                 "UPDATE turns SET status = ?, failed_stage = ?, error_kind = ?,"
                 " attempts_json = ?, result_json = ?, updated_at = ?"
                 " WHERE call_id = ? AND turn_id = ?",
-                (status, failed_stage, error_kind, _dumps(attempts), _dumps(partial), now,
-                 call_id, turn_id),
+                (
+                    status,
+                    failed_stage,
+                    error_kind,
+                    _dumps(attempts),
+                    _dumps(partial),
+                    now,
+                    call_id,
+                    turn_id,
+                ),
             )
             if cur.rowcount != 1:
                 raise LookupError(f"turn {call_id}/{turn_id} does not exist")
@@ -306,8 +314,17 @@ class Store:
                 " error_detail, payload_json, attempts_json, partial_json, created_at)"
                 " SELECT call_id, turn_id, ?, ?, ?, ?, request_json, ?, ?, ? FROM turns"
                 " WHERE call_id = ? AND turn_id = ?",
-                (reason, failed_stage, error_kind, error_detail, _dumps(attempts),
-                 _dumps(partial), now, call_id, turn_id),
+                (
+                    reason,
+                    failed_stage,
+                    error_kind,
+                    error_detail,
+                    _dumps(attempts),
+                    _dumps(partial),
+                    now,
+                    call_id,
+                    turn_id,
+                ),
             )
             dlq_id = cur.lastrowid
             await self._conn.execute("COMMIT")

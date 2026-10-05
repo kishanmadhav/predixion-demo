@@ -33,7 +33,9 @@ def test_fail_fast_errors_are_not_retried(kind: ErrorKind) -> None:
 
 
 def test_error_message_names_stage_and_kind() -> None:
-    err = ProviderError("tts", ErrorKind.RATE_LIMITED, "slow down", status_code=429, retry_after=1.5)
+    err = ProviderError(
+        "tts", ErrorKind.RATE_LIMITED, "slow down", status_code=429, retry_after=1.5
+    )
     assert "tts" in str(err)
     assert "rate_limited" in str(err)
     assert err.retry_after == 1.5

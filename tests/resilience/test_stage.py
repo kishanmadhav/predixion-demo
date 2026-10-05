@@ -57,8 +57,9 @@ def make_stage(
     return ResilientStage(
         "llm",
         breaker=breaker or CircuitBreaker("llm", window_size=10, minimum_calls=5, clock=t.clock),
-        retry=RetryPolicy(max_attempts=max_attempts, base_delay=0.1, max_delay=1.0,
-                          rng=random.Random(3)),
+        retry=RetryPolicy(
+            max_attempts=max_attempts, base_delay=0.1, max_delay=1.0, rng=random.Random(3)
+        ),
         timeout_s=timeout_s,
         sleep=t.sleep,
         clock=t.clock,
@@ -119,8 +120,7 @@ async def test_non_retryable_errors_do_not_count_toward_the_breaker() -> None:
 
 async def test_open_breaker_fails_fast_without_calling_the_provider() -> None:
     t = FakeTime()
-    breaker = CircuitBreaker("llm", window_size=5, minimum_calls=1, open_seconds=30,
-                             clock=t.clock)
+    breaker = CircuitBreaker("llm", window_size=5, minimum_calls=1, open_seconds=30, clock=t.clock)
     breaker.on_failure(breaker.acquire())
     assert breaker.state is BreakerState.OPEN
     fn, calls = scripted("never reached")
@@ -134,8 +134,7 @@ async def test_open_breaker_fails_fast_without_calling_the_provider() -> None:
 
 async def test_breaker_opening_mid_retry_stops_the_retry_loop() -> None:
     t = FakeTime()
-    breaker = CircuitBreaker("llm", window_size=5, minimum_calls=2, open_seconds=30,
-                             clock=t.clock)
+    breaker = CircuitBreaker("llm", window_size=5, minimum_calls=2, open_seconds=30, clock=t.clock)
     fn, calls = scripted(transient(), transient(), "never reached")
     with pytest.raises(StageFailedError) as exc:
         await make_stage(t, breaker=breaker, max_attempts=5).run(fn, deadline=10.0)
@@ -195,8 +194,9 @@ async def test_no_attempt_is_started_without_enough_deadline_budget() -> None:
 
 async def test_does_not_sleep_past_the_deadline() -> None:
     t = FakeTime()
-    rate_limited = ProviderError("llm", ErrorKind.RATE_LIMITED, "429", status_code=429,
-                                 retry_after=1.0)
+    rate_limited = ProviderError(
+        "llm", ErrorKind.RATE_LIMITED, "429", status_code=429, retry_after=1.0
+    )
     fn, calls = scripted(rate_limited, "never reached")
     with pytest.raises(StageFailedError) as exc:
         await make_stage(t).run(fn, deadline=0.5)

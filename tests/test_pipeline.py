@@ -42,7 +42,9 @@ async def test_transient_failure_is_retried_transparently(
     assert result.status is TurnStatus.COMPLETED
     assert llm.calls == 3
     assert [a["outcome"] for a in result.attempts if a["stage"] == "llm"] == [
-        "error", "error", "ok"
+        "error",
+        "error",
+        "ok",
     ]
 
 

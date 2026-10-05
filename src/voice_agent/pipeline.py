@@ -125,13 +125,13 @@ class TurnPipeline:
             return await self._degrade(call_id, turn_id, failure, started)
         except asyncio.CancelledError:
             # Client went away or the server is shutting down: still leave a record.
-            failure = TurnFailedError("pipeline", "cancelled", "turn was cancelled", [], {})
-            await asyncio.shield(self._dead_letter(call_id, turn_id, failure))
+            cancelled = TurnFailedError("pipeline", "cancelled", "turn was cancelled", [], {})
+            await asyncio.shield(self._dead_letter(call_id, turn_id, cancelled))
             raise
         except Exception as exc:  # a bug must not lose the turn either
             log.exception("unexpected error in turn %s/%s", call_id, turn_id)
-            failure = TurnFailedError("pipeline", "internal_error", repr(exc), [], {})
-            return await self._degrade(call_id, turn_id, failure, started)
+            internal = TurnFailedError("pipeline", "internal_error", repr(exc), [], {})
+            return await self._degrade(call_id, turn_id, internal, started)
 
         await self.store.complete_turn(call_id, turn_id, processed.record(), processed.attempts)
         duration = self._clock() - started
@@ -160,19 +160,22 @@ class TurnPipeline:
         history = await self._history(call_id, before_turn=turn_id)
         p = self.providers
 
-        transcript = await self._run("stt", lambda: p.stt.transcribe(audio), deadline,
-                                     attempts, partial)
+        transcript = await self._run(
+            "stt", lambda: p.stt.transcribe(audio), deadline, attempts, partial
+        )
         partial["transcript"] = transcript
         messages = [
             ChatMessage("system", self.settings.system_prompt),
             *history,
             ChatMessage("user", transcript),
         ]
-        reply = await self._run("llm", lambda: p.llm.complete(messages), deadline,
-                                attempts, partial)
+        reply = await self._run(
+            "llm", lambda: p.llm.complete(messages), deadline, attempts, partial
+        )
         partial["reply_text"] = reply
-        speech = await self._run("tts", lambda: p.tts.synthesize(reply), deadline,
-                                 attempts, partial)
+        speech = await self._run(
+            "tts", lambda: p.tts.synthesize(reply), deadline, attempts, partial
+        )
         return ProcessedTurn(transcript, reply, speech, [a.to_dict() for a in attempts])
 
     async def _run(
@@ -188,8 +191,11 @@ class TurnPipeline:
         except StageFailedError as exc:
             attempts.extend(exc.attempts)
             raise TurnFailedError(
-                name, exc.error.kind.value, str(exc.error),
-                [a.to_dict() for a in attempts], dict(partial),
+                name,
+                exc.error.kind.value,
+                str(exc.error),
+                [a.to_dict() for a in attempts],
+                dict(partial),
             ) from exc
         attempts.extend(outcome.attempts)
         return outcome.value
@@ -204,7 +210,7 @@ class TurnPipeline:
             if turn.status in _HISTORY_STATUSES and turn.result:
                 prior.append(turn)
         messages = []
-        for turn in prior[-self.settings.llm_history_turns:]:
+        for turn in prior[-self.settings.llm_history_turns :]:
             assert turn.result is not None
             messages.append(ChatMessage("user", turn.result["transcript"]))
             messages.append(ChatMessage("assistant", turn.result["reply_text"]))
@@ -226,7 +232,11 @@ class TurnPipeline:
         self.metrics.turns.labels(TurnStatus.DEGRADED.value).inc()
         log.warning(
             "turn degraded call=%s turn=%s stage=%s kind=%s dlq_id=%s",
-            call_id, turn_id, failure.failed_stage, failure.error_kind, dlq_id,
+            call_id,
+            turn_id,
+            failure.failed_stage,
+            failure.error_kind,
+            dlq_id,
         )
         return dlq_id
 

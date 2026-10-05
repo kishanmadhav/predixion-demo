@@ -86,9 +86,7 @@ class _State:
     rng: random.Random
     failure_rates: dict[str, float]
     outage_until: dict[str, float] = field(default_factory=dict)
-    stats: dict[str, Counter[str]] = field(
-        default_factory=lambda: {s: Counter() for s in STAGES}
-    )
+    stats: dict[str, Counter[str]] = field(default_factory=lambda: {s: Counter() for s in STAGES})
 
     def reset(self) -> None:
         self.failure_rates = dict.fromkeys(STAGES, self.config.failure_rate)

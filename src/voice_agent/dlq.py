@@ -90,8 +90,9 @@ class DeadLetterService:
 
         await self._store.resolve_dead_letter(dlq_id, processed.record(), processed.attempts)
         return self._done(
-            ReplayOutcome(dlq_id, "resolved", result=processed.record(),
-                          attempts=processed.attempts)
+            ReplayOutcome(
+                dlq_id, "resolved", result=processed.record(), attempts=processed.attempts
+            )
         )
 
     async def replay_pending(self, *, limit: int = 100) -> list[ReplayOutcome]:

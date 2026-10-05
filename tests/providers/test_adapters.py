@@ -69,7 +69,9 @@ async def test_mock_adapters_reject_malformed_bodies(body: dict[str, object]) ->
     rec = Recorder(httpx.Response(200, json=body))
     async with rec.client() as client:
         adapter = (
-            MockTts(client, "http://m/v1") if "audio_b64" in body else MockStt(client, "http://m/v1")
+            MockTts(client, "http://m/v1")
+            if "audio_b64" in body
+            else MockStt(client, "http://m/v1")
         )
         with pytest.raises(ProviderError) as exc:
             if isinstance(adapter, MockTts):
@@ -85,8 +87,9 @@ async def test_mock_adapters_reject_malformed_bodies(body: dict[str, object]) ->
 async def test_openai_stt_sends_multipart_transcription_request() -> None:
     rec = Recorder(httpx.Response(200, json={"text": "hello"}))
     async with rec.client() as client:
-        stt = OpenAICompatStt(client, "http://speaches:8000/v1", model="Systran/faster-whisper-small",
-                              language="en")
+        stt = OpenAICompatStt(
+            client, "http://speaches:8000/v1", model="Systran/faster-whisper-small", language="en"
+        )
         assert await stt.transcribe(b"WAVBYTES") == "hello"
     req = rec.last
     assert req.url == "http://speaches:8000/v1/audio/transcriptions"
@@ -101,12 +104,14 @@ async def test_openai_stt_sends_multipart_transcription_request() -> None:
 
 async def test_openai_llm_sends_chat_completion_and_reads_first_choice() -> None:
     rec = Recorder(
-        httpx.Response(200, json={"choices": [{"message": {"role": "assistant",
-                                                           "content": "Sure."}}]})
+        httpx.Response(
+            200, json={"choices": [{"message": {"role": "assistant", "content": "Sure."}}]}
+        )
     )
     async with rec.client() as client:
-        llm = OpenAICompatLlm(client, "http://ollama:11434/v1", model="qwen2.5:1.5b",
-                              api_key=SecretStr("sk-local"))
+        llm = OpenAICompatLlm(
+            client, "http://ollama:11434/v1", model="qwen2.5:1.5b", api_key=SecretStr("sk-local")
+        )
         assert await llm.complete([ChatMessage("user", "hi")]) == "Sure."
     req = rec.last
     assert req.url == "http://ollama:11434/v1/chat/completions"

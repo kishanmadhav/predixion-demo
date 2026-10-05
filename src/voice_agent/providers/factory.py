@@ -31,8 +31,11 @@ def build_providers(settings: Settings, client: httpx.AsyncClient) -> Providers:
 
     if settings.stt_provider == "openai":
         stt = OpenAICompatStt(
-            client, settings.stt_base_url, model=settings.stt_model,
-            language=settings.stt_language, api_key=settings.stt_api_key,
+            client,
+            settings.stt_base_url,
+            model=settings.stt_model,
+            language=settings.stt_language,
+            api_key=settings.stt_api_key,
         )
     else:
         stt = MockStt(client, settings.stt_base_url)
@@ -46,7 +49,10 @@ def build_providers(settings: Settings, client: httpx.AsyncClient) -> Providers:
 
     if settings.tts_provider == "openai":
         tts = OpenAICompatTts(
-            client, settings.tts_base_url, model=settings.tts_model, voice=settings.tts_voice,
+            client,
+            settings.tts_base_url,
+            model=settings.tts_model,
+            voice=settings.tts_voice,
             api_key=settings.tts_api_key,
         )
     else:

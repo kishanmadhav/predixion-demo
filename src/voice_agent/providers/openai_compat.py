@@ -40,7 +40,10 @@ class OpenAICompatStt:
         if self._language:
             data["language"] = self._language
         response = await send(
-            self._client, "stt", "POST", self._url,
+            self._client,
+            "stt",
+            "POST",
+            self._url,
             files={"file": ("audio.wav", audio, "audio/wav")},
             data=data,
             headers=self._headers,
@@ -72,7 +75,10 @@ class OpenAICompatLlm:
 
     async def complete(self, messages: list[ChatMessage]) -> str:
         response = await send(
-            self._client, "llm", "POST", self._url,
+            self._client,
+            "llm",
+            "POST",
+            self._url,
             json={
                 "model": self._model,
                 "messages": [{"role": m.role, "content": m.content} for m in messages],
@@ -112,7 +118,10 @@ class OpenAICompatTts:
 
     async def synthesize(self, text: str) -> bytes:
         response = await send(
-            self._client, "tts", "POST", self._url,
+            self._client,
+            "tts",
+            "POST",
+            self._url,
             json={
                 "model": self._model,
                 "input": text,

@@ -51,3 +51,4 @@ python_version = "3.11"
 strict = true
 mypy_path = "src"
 packages = ["voice_agent", "mock_provider"]
+plugins = ["pydantic.mypy"]

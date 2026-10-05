@@ -29,7 +29,10 @@ class MockStt:
 
     async def transcribe(self, audio: bytes) -> str:
         response = await send(
-            self._client, "stt", "POST", self._url,
+            self._client,
+            "stt",
+            "POST",
+            self._url,
             json={"audio_b64": base64.b64encode(audio).decode("ascii")},
         )
         return _text_field("stt", parse_json("stt", response), "text")
@@ -42,7 +45,10 @@ class MockLlm:
 
     async def complete(self, messages: list[ChatMessage]) -> str:
         response = await send(
-            self._client, "llm", "POST", self._url,
+            self._client,
+            "llm",
+            "POST",
+            self._url,
             json={"messages": [{"role": m.role, "content": m.content} for m in messages]},
         )
         return _text_field("llm", parse_json("llm", response), "text")

@@ -80,8 +80,7 @@ async def test_call_audit_trail_lists_every_turn(ctx: Ctx) -> None:
     llm.failing = True
     await client.post("/v1/calls/c1/turns", json={"turn_id": "t2", "audio_b64": AUDIO})
     turns = (await client.get("/v1/calls/c1")).json()["turns"]
-    assert [(t["turn_id"], t["status"]) for t in turns] == [("t1", "completed"),
-                                                           ("t2", "degraded")]
+    assert [(t["turn_id"], t["status"]) for t in turns] == [("t1", "completed"), ("t2", "degraded")]
 
 
 async def test_unknown_call_is_404(ctx: Ctx) -> None:

@@ -15,8 +15,10 @@ class Metrics:
         self.registry = CollectorRegistry()
         r = self.registry
         self.attempts = Counter(
-            "provider_attempts", "Calls attempted against a provider, by outcome",
-            ["stage", "outcome", "error_kind"], registry=r,
+            "provider_attempts",
+            "Calls attempted against a provider, by outcome",
+            ["stage", "outcome", "error_kind"],
+            registry=r,
         )
         self.retries = Counter(
             "provider_retries", "Attempts beyond the first for a stage", ["stage"], registry=r
@@ -25,19 +27,25 @@ class Metrics:
             "circuit_breaker_state", "0=closed, 1=half_open, 2=open", ["stage"], registry=r
         )
         self.breaker_transitions = Counter(
-            "circuit_breaker_transitions", "Circuit breaker state changes",
-            ["stage", "from_state", "to_state"], registry=r,
+            "circuit_breaker_transitions",
+            "Circuit breaker state changes",
+            ["stage", "from_state", "to_state"],
+            registry=r,
         )
         self.turns = Counter("turns", "Turns handled, by final status", ["status"], registry=r)
         self.turn_seconds = Histogram(
-            "turn_duration_seconds", "End-to-end turn latency", ["status"], registry=r,
+            "turn_duration_seconds",
+            "End-to-end turn latency",
+            ["status"],
+            registry=r,
             buckets=(0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4, 6, 8),
         )
         self.dead_letters = Counter(
             "dead_letters", "Turns written to the dead-letter queue", ["reason"], registry=r
         )
-        self.replays = Counter("dlq_replays", "Dead-letter replays, by result", ["result"],
-                               registry=r)
+        self.replays = Counter(
+            "dlq_replays", "Dead-letter replays, by result", ["result"], registry=r
+        )
 
     def observe_attempt(self, stage: str, record: AttemptRecord) -> None:
         self.attempts.labels(stage, record.outcome, record.error_kind or "").inc()

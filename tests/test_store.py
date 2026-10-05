@@ -70,8 +70,15 @@ async def test_degrade_turn_marks_turn_and_dead_letters_it_atomically(store: Sto
 
 async def test_degrade_of_unknown_turn_raises_and_writes_nothing(store: Store) -> None:
     with pytest.raises(LookupError):
-        await store.degrade_turn("nope", "t1", failed_stage="stt", error_kind="timeout",
-                                 error_detail="x", attempts=[], partial={})
+        await store.degrade_turn(
+            "nope",
+            "t1",
+            failed_stage="stt",
+            error_kind="timeout",
+            error_detail="x",
+            attempts=[],
+            partial={},
+        )
     assert await store.list_dead_letters() == []
 
 
