@@ -1,8 +1,8 @@
 """Circuit breaker: closed -> open -> half-open -> closed.
 
 * CLOSED: calls flow; outcomes go into a rolling window of the last `window_size`
-  counted calls. Once at least `minimum_calls` are recorded and the failure rate
-  reaches `failure_rate_threshold`, the circuit opens.
+  counted calls. When a failure leaves at least `minimum_calls` in the window with a
+  failure rate at or above `failure_rate_threshold`, the circuit opens.
 * OPEN: calls are rejected immediately with `ErrorKind.CIRCUIT_OPEN` (no load on the
   struggling provider, no latency for the caller) for `open_seconds`.
 * HALF_OPEN: up to `half_open_max_calls` probes are admitted. The majority decides:
@@ -138,7 +138,13 @@ class CircuitBreaker:
             return  # admitted under a previous state; its outcome is stale
         if self._state is BreakerState.CLOSED:
             self._window.append(failed)
-            if len(self._window) >= self._minimum_calls and self._failure_rate() >= self._threshold:
+            # Only a failure can trip the circuit: opening right after a healthy call
+            # would cut off a provider that is already recovering.
+            if (
+                failed
+                and len(self._window) >= self._minimum_calls
+                and self._failure_rate() >= self._threshold
+            ):
                 self._transition(BreakerState.OPEN)
         elif self._state is BreakerState.HALF_OPEN:
             self._probes_in_flight -= 1

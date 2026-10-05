@@ -76,6 +76,14 @@ def test_trips_when_failure_rate_reaches_threshold(
     assert transitions == [("llm", BreakerState.CLOSED, BreakerState.OPEN)]
 
 
+def test_a_success_never_opens_the_circuit(breaker: CircuitBreaker) -> None:
+    fail(breaker, 4)  # 4 of 4 failed, but below minimum_calls
+    succeed(breaker, 1)  # reaches minimum_calls at 80% failure: the latest call was healthy
+    assert breaker.state is BreakerState.CLOSED
+    fail(breaker, 1)
+    assert breaker.state is BreakerState.OPEN
+
+
 def test_baseline_flakiness_below_threshold_keeps_it_closed(breaker: CircuitBreaker) -> None:
     # 20% failure, evenly spread: the normal "bad day" level must not open the circuit.
     for _ in range(20):

@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     handoff_after_degraded: int = Field(2, ge=1)
     llm_history_turns: int = Field(6, ge=0)
     system_prompt: str = DEFAULT_SYSTEM_PROMPT
+    # Optional directory with pre-recorded retry_prompt.wav / handoff.wav.
+    fallback_audio_dir: Path | None = None
 
     # Retry
     retry_max_attempts: int = Field(3, ge=1)
