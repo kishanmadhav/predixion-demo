@@ -5,10 +5,13 @@ Guarantees, in order of importance:
 1. Every turn is written ahead (`in_progress`) before any provider is called.
 2. Every turn ends `completed` or `degraded`; a degraded turn's dead-letter row is
    committed (same transaction) *before* the caller hears the fallback prompt.
-   This holds for provider failures, open circuits, blown deadlines and our own
-   bugs. A process crash is covered by `Store.recover()` at the next startup.
+   This holds for provider failures, open circuits, blown deadlines, our own bugs
+   and cancellation: finalization runs shielded, so a cancelled request still
+   records its outcome.
 3. The caller always gets audio back: the real reply, or a pre-rendered fallback
-   plus an `action` telling the telephony layer to re-prompt or hand off.
+   plus an `action` telling the telephony layer to re-prompt or hand off. Even a
+   failed database write does not turn into a dropped call; the turn is then left
+   `in_progress`, and the store's lease sweeper (or startup recovery) dead-letters it.
 """
 
 from __future__ import annotations
@@ -28,14 +31,12 @@ from voice_agent.providers.base import ChatMessage
 from voice_agent.providers.factory import Providers
 from voice_agent.resilience.breaker import BreakerState
 from voice_agent.resilience.stage import AttemptRecord, ResilientStage, StageFailedError
-from voice_agent.store import Store, Turn, TurnStatus
+from voice_agent.store import Store, TurnStatus
 
 __all__ = ["Action", "ProcessedTurn", "TurnFailedError", "TurnPipeline", "TurnResult"]
 
 log = logging.getLogger(__name__)
 T = TypeVar("T")
-
-_HISTORY_STATUSES = (TurnStatus.COMPLETED, TurnStatus.COMPLETED_ON_REPLAY)
 
 
 @dataclass(frozen=True)
@@ -113,6 +114,9 @@ class TurnPipeline:
     def circuits_closed(self) -> bool:
         return all(s.breaker.state is BreakerState.CLOSED for s in self.stages.values())
 
+    def open_circuits(self) -> list[str]:
+        return [n for n, s in self.stages.items() if s.breaker.state is BreakerState.OPEN]
+
     # -- live turns ---------------------------------------------------------
 
     async def handle_turn(self, call_id: str, turn_id: str, audio: bytes) -> TurnResult:
@@ -121,23 +125,44 @@ class TurnPipeline:
         if not await self.store.begin_turn(call_id, turn_id, request):
             return await self._duplicate(call_id, turn_id)
 
+        outcome: ProcessedTurn | TurnFailedError
         try:
-            processed = await self.process(
+            outcome = await self.process(
                 call_id, turn_id, audio, deadline=started + self.settings.turn_deadline_s
             )
         except TurnFailedError as failure:
-            return await self._degrade(call_id, turn_id, failure, started)
+            outcome = failure
         except asyncio.CancelledError:
-            # Client went away or the server is shutting down: still leave a record.
+            # Server shutdown: nobody will hear a reply, but the turn is still recorded.
             cancelled = TurnFailedError("pipeline", "cancelled", "turn was cancelled", [], {})
-            await asyncio.shield(self._dead_letter(call_id, turn_id, cancelled))
+            await asyncio.shield(self._degrade(call_id, turn_id, cancelled, started))
             raise
-        except Exception as exc:  # a bug must not lose the turn either
+        except Exception as exc:  # a bug outside any stage must not lose the turn either
             log.exception("unexpected error in turn %s/%s", call_id, turn_id)
-            internal = TurnFailedError("pipeline", "internal_error", repr(exc), [], {})
-            return await self._degrade(call_id, turn_id, internal, started)
+            outcome = TurnFailedError("pipeline", "internal_error", repr(exc), [], {})
 
-        await self.store.complete_turn(call_id, turn_id, processed.record(), processed.attempts)
+        # Shielded: once providers have answered, recording the outcome always finishes.
+        return await asyncio.shield(self._finish(call_id, turn_id, outcome, started))
+
+    async def _finish(
+        self,
+        call_id: str,
+        turn_id: str,
+        outcome: ProcessedTurn | TurnFailedError,
+        started: float,
+    ) -> TurnResult:
+        if isinstance(outcome, TurnFailedError):
+            return await self._degrade(call_id, turn_id, outcome, started)
+        try:
+            if not await self.store.complete_turn(
+                call_id, turn_id, outcome.record(), outcome.attempts
+            ):
+                log.error(
+                    "turn %s/%s was no longer in progress when it completed", call_id, turn_id
+                )
+        except Exception:
+            # The caller still gets the reply; the lease sweeper dead-letters the turn.
+            log.exception("could not record completed turn %s/%s", call_id, turn_id)
         duration = self._clock() - started
         self.metrics.turns.labels(TurnStatus.COMPLETED.value).inc()
         self.metrics.turn_seconds.labels(TurnStatus.COMPLETED.value).observe(duration)
@@ -146,10 +171,10 @@ class TurnPipeline:
             turn_id=turn_id,
             status=TurnStatus.COMPLETED,
             action=Action.CONTINUE,
-            transcript=processed.transcript,
-            reply_text=processed.reply_text,
-            audio=processed.audio,
-            attempts=processed.attempts,
+            transcript=outcome.transcript,
+            reply_text=outcome.reply_text,
+            audio=outcome.audio,
+            attempts=outcome.attempts,
             duration_ms=round(duration * 1000, 1),
         )
 
@@ -161,18 +186,19 @@ class TurnPipeline:
         """Run the three stages. Raises TurnFailedError with partial results on failure."""
         attempts: list[AttemptRecord] = []
         partial: dict[str, Any] = {}
-        history = await self._history(call_id, before_turn=turn_id)
+        history = await self.store.history_before(
+            call_id, turn_id, limit=self.settings.llm_history_turns
+        )
         p = self.providers
 
         transcript = await self._run(
             "stt", lambda: p.stt.transcribe(audio), deadline, attempts, partial
         )
         partial["transcript"] = transcript
-        messages = [
-            ChatMessage("system", self.settings.system_prompt),
-            *history,
-            ChatMessage("user", transcript),
-        ]
+        messages = [ChatMessage("system", self.settings.system_prompt)]
+        for said, replied in history:
+            messages += [ChatMessage("user", said), ChatMessage("assistant", replied)]
+        messages.append(ChatMessage("user", transcript))
         reply = await self._run(
             "llm", lambda: p.llm.complete(messages), deadline, attempts, partial
         )
@@ -201,58 +227,55 @@ class TurnPipeline:
                 [a.to_dict() for a in attempts],
                 dict(partial),
             ) from exc
+        except Exception as exc:  # an adapter bug: keep the context gathered so far
+            log.exception("unexpected error in stage %s", name)
+            raise TurnFailedError(
+                name, "internal_error", repr(exc), [a.to_dict() for a in attempts], dict(partial)
+            ) from exc
         attempts.extend(outcome.attempts)
         return outcome.value
 
-    async def _history(self, call_id: str, *, before_turn: str) -> list[ChatMessage]:
-        if self.settings.llm_history_turns == 0:
-            return []
-        prior: list[Turn] = []
-        for turn in await self.store.list_turns(call_id):
-            if turn.turn_id == before_turn:
-                break
-            if turn.status in _HISTORY_STATUSES and turn.result:
-                prior.append(turn)
-        messages = []
-        for turn in prior[-self.settings.llm_history_turns :]:
-            assert turn.result is not None
-            messages.append(ChatMessage("user", turn.result["transcript"]))
-            messages.append(ChatMessage("assistant", turn.result["reply_text"]))
-        return messages
-
     # -- degradation ----------------------------------------------------------
 
-    async def _dead_letter(self, call_id: str, turn_id: str, failure: TurnFailedError) -> int:
-        dlq_id = await self.store.degrade_turn(
-            call_id,
-            turn_id,
-            failed_stage=failure.failed_stage,
-            error_kind=failure.error_kind,
-            error_detail=failure.detail,
-            attempts=failure.attempts,
-            partial=failure.partial,
+    async def _degrade(
+        self, call_id: str, turn_id: str, failure: TurnFailedError, started: float
+    ) -> TurnResult:
+        try:
+            # This turn is still in progress, so it is not counted yet: add it.
+            consecutive = await self.store.consecutive_degraded(call_id) + 1
+        except Exception:
+            log.exception("could not read call history for %s", call_id)
+            consecutive = 1
+        action = (
+            Action.HANDOFF
+            if consecutive >= self.settings.handoff_after_degraded
+            else Action.RETRY_PROMPT
         )
-        self.metrics.dead_letters.labels("stage_failed").inc()
+        dlq_id = None
+        try:
+            dlq_id = await self.store.degrade_turn(
+                call_id,
+                turn_id,
+                failed_stage=failure.failed_stage,
+                error_kind=failure.error_kind,
+                error_detail=failure.detail,
+                attempts=failure.attempts,
+                partial=failure.partial,
+                action=action.value,
+            )
+            self.metrics.dead_letters.labels("stage_failed").inc()
+        except Exception:
+            # Still play the fallback; the lease sweeper dead-letters the turn later.
+            log.exception("could not dead-letter turn %s/%s", call_id, turn_id)
         self.metrics.turns.labels(TurnStatus.DEGRADED.value).inc()
         log.warning(
-            "turn degraded call=%s turn=%s stage=%s kind=%s dlq_id=%s",
+            "turn degraded call=%s turn=%s stage=%s kind=%s dlq_id=%s action=%s",
             call_id,
             turn_id,
             failure.failed_stage,
             failure.error_kind,
             dlq_id,
-        )
-        return dlq_id
-
-    async def _degrade(
-        self, call_id: str, turn_id: str, failure: TurnFailedError, started: float
-    ) -> TurnResult:
-        dlq_id = await self._dead_letter(call_id, turn_id, failure)
-        consecutive = await self.store.consecutive_degraded(call_id)
-        action = (
-            Action.HANDOFF
-            if consecutive >= self.settings.handoff_after_degraded
-            else Action.RETRY_PROMPT
+            action.value,
         )
         prompt = self.fallbacks[action]
         duration = self._clock() - started
@@ -273,18 +296,34 @@ class TurnPipeline:
         )
 
     async def _duplicate(self, call_id: str, turn_id: str) -> TurnResult:
-        """A turn id we have already seen: report it, never re-run providers."""
+        """A turn id we have already seen: report what the caller got, never re-run
+        providers. Completed turns return the reply text (audio is not stored);
+        anything else returns the fallback prompt the caller should hear."""
         turn = await self.store.get_turn(call_id, turn_id)
         assert turn is not None
         result = turn.result or {}
+        if turn.status is TurnStatus.COMPLETED:
+            return TurnResult(
+                call_id=call_id,
+                turn_id=turn_id,
+                status=turn.status,
+                action=Action.CONTINUE,
+                transcript=result.get("transcript"),
+                reply_text=result.get("reply_text"),
+                audio=None,
+                attempts=turn.attempts,
+                duplicate=True,
+            )
+        action = Action.HANDOFF if turn.action == Action.HANDOFF.value else Action.RETRY_PROMPT
+        prompt = self.fallbacks[action]
         return TurnResult(
             call_id=call_id,
             turn_id=turn_id,
             status=turn.status,
-            action=Action.CONTINUE if turn.status is TurnStatus.COMPLETED else Action.RETRY_PROMPT,
+            action=action,
             transcript=result.get("transcript"),
-            reply_text=result.get("reply_text"),
-            audio=None,
+            reply_text=prompt.text,
+            audio=prompt.audio,
             failed_stage=turn.failed_stage,
             error_kind=turn.error_kind,
             attempts=turn.attempts,

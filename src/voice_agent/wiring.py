@@ -5,6 +5,8 @@ Used by the HTTP app, the CLI and the tests, so all three run the exact same wir
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import random
 from dataclasses import dataclass
 
@@ -23,6 +25,8 @@ from voice_agent.store import Store
 
 STAGE_NAMES = ("stt", "llm", "tts")
 
+log = logging.getLogger(__name__)
+
 
 @dataclass
 class Runtime:
@@ -35,6 +39,30 @@ class Runtime:
     dlq: DeadLetterService
     recovered_dead_letters: list[int]
     _client: httpx.AsyncClient | None
+
+    @property
+    def lease_s(self) -> float:
+        """How long a turn or a replay claim may sit untouched before the sweeper
+        reclaims it: comfortably longer than any turn can legitimately run."""
+        return max(60.0, 3 * self.settings.turn_deadline_s)
+
+    async def sweep(self) -> list[int]:
+        """Reclaim work orphaned while the service kept running (a cancelled request,
+        a failed write). Returns the dead-letter ids it created."""
+        ids = await self.store.recover(stale_after_s=self.lease_s)
+        for _ in ids:
+            self.metrics.dead_letters.labels("interrupted").inc()
+        if ids:
+            log.warning("sweeper dead-lettered %d stale turn(s): %s", len(ids), ids)
+        return ids
+
+    async def run_sweeper(self) -> None:
+        while True:
+            await asyncio.sleep(self.settings.sweep_interval_s)
+            try:
+                await self.sweep()
+            except Exception:
+                log.exception("lease sweep failed; will retry")
 
     async def close(self) -> None:
         if self._client is not None:
@@ -88,14 +116,17 @@ async def open_runtime(
     *,
     providers: Providers | None = None,
     client: httpx.AsyncClient | None = None,
+    recover: bool = True,
 ) -> Runtime:
     """Open the store, run crash recovery, and wire everything together.
 
     Pass `providers` to inject fakes, or `client` to route the real adapters through
     a custom transport (tests use this to talk to the mock app in-process).
+    `recover=False` is for tools (the CLI) that open the database while the service
+    may be running: only the service may reclaim in-flight work.
     """
     store = await Store.open(settings.db_path)
-    recovered = await store.recover()
+    recovered = await store.recover() if recover else []
     metrics = Metrics()
     for _ in recovered:
         metrics.dead_letters.labels("interrupted").inc()

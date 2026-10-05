@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import binascii
+import contextlib
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -19,7 +21,13 @@ from voice_agent.pipeline import TurnResult
 from voice_agent.store import DEAD_LETTER_STATUSES, DeadLetter, Turn
 from voice_agent.wiring import Runtime, open_runtime
 
-_REPLAY_HTTP_STATUS = {"resolved": 200, "failed": 502, "not_replayable": 409, "not_found": 404}
+_REPLAY_HTTP_STATUS = {
+    "resolved": 200,
+    "failed": 502,
+    "skipped": 503,  # a circuit is open: retry after the cool-down
+    "not_replayable": 409,
+    "not_found": 404,
+}
 
 
 class TurnRequest(BaseModel):
@@ -86,6 +94,7 @@ def _replay(outcome: ReplayOutcome) -> dict[str, Any]:
         "id": outcome.id,
         "status": outcome.status,
         "error": outcome.error,
+        "error_kind": outcome.error_kind,
         "result": outcome.result,
         "attempts": outcome.attempts,
     }
@@ -103,9 +112,13 @@ def create_app(settings: Settings | None = None, *, runtime: Runtime | None = No
             return
         opened = await open_runtime(settings or Settings())
         app.state.runtime = opened
+        sweeper = asyncio.create_task(opened.run_sweeper())
         try:
             yield
         finally:
+            sweeper.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await sweeper
             await opened.close()
 
     app = FastAPI(

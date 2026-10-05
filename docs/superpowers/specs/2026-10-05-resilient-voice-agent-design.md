@@ -85,8 +85,10 @@ never starts an attempt with < 50 ms of budget left. Per-attempt timeout =
 `min(stage_timeout, remaining_budget)`.
 
 **Breaker:** count-based rolling window of the last 50 counted outcomes, `minimum_calls=20`,
-trips at failure rate ≥ 50%. Thresholds chosen so the *baseline* 20% flakiness does not trip it
-(P[≥25 of 50 fail | p=0.2] ≈ 1e-6) while a real outage trips it within ~20 attempts.
+trips (on a failure) at failure rate ≥ 60%. Chosen by simulating the breaker: at 50% it
+false-tripped in 0.5% of 3,000-attempt runs at the baseline 20% flakiness (mostly during
+warm-up); at 60% there were no trips in ~30M attempts, and a real outage still trips it
+within 27 attempts.
 Open for `open_seconds=5`, then half-open admits up to 5 probes; when all 5 finish, failure rate
 < 50% → closed (window reset), else → open again. Probes beyond the limit are rejected.
 One breaker per stage, so a TTS outage does not block STT.
@@ -102,7 +104,11 @@ One breaker per stage, so a TTS outage does not block STT.
   `action`: `retry_prompt`, or `handoff` once a call has `HANDOFF_AFTER_DEGRADED=2` consecutive
   degraded turns (transfer to a human / schedule callback).
 - Startup recovery: turns left `in_progress` by a crash are moved to `interrupted` and
-  dead-lettered, so a process crash cannot lose a turn either.
+  dead-lettered, so a process crash cannot lose a turn either. While running, a lease sweeper
+  does the same for turns/replay claims untouched for `max(60s, 3 x turn deadline)`.
+- Finalization (complete or dead-letter) runs shielded from cancellation; every state
+  transition is guarded in SQL (`WHERE status = <expected>`); only the service runs recovery
+  (the CLI never does).
 - `/health` never depends on downstream health (a provider outage must not make the load balancer
   kill healthy orchestrator tasks); it reports breaker states for humans.
 

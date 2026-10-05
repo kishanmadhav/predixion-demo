@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     # Turn budget: a caller will not wait forever for the agent to speak.
     turn_deadline_s: float = Field(6.0, gt=0)
     handoff_after_degraded: int = Field(2, ge=1)
+    # How often the service reclaims turns/replay claims orphaned while it runs.
+    sweep_interval_s: float = Field(30.0, gt=0)
     llm_history_turns: int = Field(6, ge=0)
     system_prompt: str = DEFAULT_SYSTEM_PROMPT
     # Optional directory with pre-recorded retry_prompt.wav / handoff.wav.
@@ -47,7 +49,7 @@ class Settings(BaseSettings):
     # Circuit breaker (one per stage)
     breaker_window: int = Field(50, ge=1)
     breaker_minimum_calls: int = Field(20, ge=1)
-    breaker_failure_threshold: float = Field(0.5, gt=0, le=1)
+    breaker_failure_threshold: float = Field(0.6, gt=0, le=1)
     breaker_open_s: float = Field(5.0, ge=0)
     breaker_half_open_calls: int = Field(5, ge=1)
 

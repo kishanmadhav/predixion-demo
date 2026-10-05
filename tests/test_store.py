@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -161,3 +162,105 @@ async def test_list_turns_is_in_arrival_order(store: Store) -> None:
     for t in ["t1", "t2", "t3"]:
         await store.begin_turn("c1", t, {})
     assert [t.turn_id for t in await store.list_turns("c1")] == ["t1", "t2", "t3"]
+
+
+# -- state-machine guards (a transition only applies from the expected state) ----------
+
+
+async def test_degrade_refuses_a_turn_that_is_not_in_progress(store: Store) -> None:
+    await store.begin_turn("c1", "t1", {})
+    await store.complete_turn("c1", "t1", {}, [])
+    with pytest.raises(LookupError):
+        await store.degrade_turn(
+            "c1",
+            "t1",
+            failed_stage="llm",
+            error_kind="timeout",
+            error_detail="x",
+            attempts=[],
+            partial={},
+        )
+    turn = await store.get_turn("c1", "t1")
+    assert turn is not None and turn.status is TurnStatus.COMPLETED
+    assert await store.list_dead_letters() == []
+    # the failed transaction was rolled back cleanly: the connection is still usable
+    assert await store.begin_turn("c1", "t2", {})
+
+
+async def test_complete_only_applies_to_an_in_progress_turn(store: Store) -> None:
+    await degrade(store)
+    assert not await store.complete_turn("c1", "t1", {"x": 1}, [])
+    turn = await store.get_turn("c1", "t1")
+    assert turn is not None and turn.status is TurnStatus.DEGRADED
+
+
+async def test_release_and_resolve_only_apply_to_a_claimed_entry(store: Store) -> None:
+    dlq_id = await degrade(store)
+    assert not await store.release_dead_letter(dlq_id, error="x", attempts=[])
+    assert not await store.resolve_dead_letter(dlq_id, {}, [])
+    dl = await store.get_dead_letter(dlq_id)
+    assert dl is not None and dl.status == "pending" and dl.replay_count == 0
+
+
+async def test_degrade_persists_the_action_given_to_the_caller(store: Store) -> None:
+    await store.begin_turn("c1", "t1", {})
+    await store.degrade_turn(
+        "c1",
+        "t1",
+        failed_stage="llm",
+        error_kind="timeout",
+        error_detail="x",
+        attempts=[],
+        partial={},
+        action="handoff",
+    )
+    turn = await store.get_turn("c1", "t1")
+    assert turn is not None and turn.action == "handoff"
+
+
+# -- leases: a running service reclaims stuck work without a restart ------------------
+
+
+async def test_recover_with_lease_ignores_fresh_work(store: Store) -> None:
+    await store.begin_turn("c1", "live", {})
+    dlq_id = await degrade(store, "c2", "t1")
+    await store.claim_dead_letter(dlq_id)
+    assert await store.recover(stale_after_s=60) == []
+    turn = await store.get_turn("c1", "live")
+    assert turn is not None and turn.status is TurnStatus.IN_PROGRESS
+    dl = await store.get_dead_letter(dlq_id)
+    assert dl is not None and dl.status == "replaying"
+
+
+async def test_recover_with_lease_reclaims_stale_work(store: Store) -> None:
+    await store.begin_turn("c1", "stuck", {})
+    dlq_id = await degrade(store, "c2", "t1")
+    await store.claim_dead_letter(dlq_id)
+    await asyncio.sleep(0.05)
+    recovered = await store.recover(stale_after_s=0.01)
+    assert len(recovered) == 1
+    turn = await store.get_turn("c1", "stuck")
+    assert turn is not None and turn.status is TurnStatus.INTERRUPTED
+    dl = await store.get_dead_letter(dlq_id)
+    assert dl is not None and dl.status == "pending"
+
+
+async def test_history_before_returns_completed_turns_preceding_the_given_one(
+    store: Store,
+) -> None:
+    for t in ("t1", "t2", "t3", "t4"):
+        await store.begin_turn("c1", t, {"audio_b64": "x" * 1000})
+    await store.complete_turn("c1", "t1", {"transcript": "a", "reply_text": "A"}, [])
+    await store.degrade_turn(
+        "c1",
+        "t2",
+        failed_stage="llm",
+        error_kind="timeout",
+        error_detail="x",
+        attempts=[],
+        partial={"transcript": "b"},
+    )
+    await store.complete_turn("c1", "t4", {"transcript": "d", "reply_text": "D"}, [])
+    assert await store.history_before("c1", "t3", limit=5) == [("a", "A")]
+    assert await store.history_before("c1", "t4", limit=5) == [("a", "A")]
+    assert await store.history_before("c1", "t4", limit=0) == []

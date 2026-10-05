@@ -25,6 +25,8 @@ def _configure_logging(level: str) -> None:
         level=level.upper(),
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
+    # One INFO line per provider request drowns the signal; failures are logged by us.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 def _serve(args: argparse.Namespace) -> None:
@@ -77,7 +79,8 @@ async def _dlq(args: argparse.Namespace) -> int:
     if args.dlq_command == "replay":
         from voice_agent.wiring import open_runtime
 
-        runtime = await open_runtime(settings)
+        # recover=False: the service may be running; only it may reclaim in-flight work.
+        runtime = await open_runtime(settings, recover=False)
         try:
             if args.all:
                 outcomes = await runtime.dlq.replay_pending(limit=args.limit)

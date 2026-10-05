@@ -50,7 +50,7 @@ class CircuitBreaker:
         *,
         window_size: int = 50,
         minimum_calls: int = 20,
-        failure_rate_threshold: float = 0.5,
+        failure_rate_threshold: float = 0.6,
         open_seconds: float = 5.0,
         half_open_max_calls: int = 5,
         clock: Callable[[], float] = time.monotonic,

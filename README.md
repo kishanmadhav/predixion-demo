@@ -22,7 +22,7 @@ You need Python ≥ 3.11 and [uv](https://docs.astral.sh/uv/). No AWS account, A
 
 ```bash
 uv sync                                   # install
-uv run pytest -q                          # 161 tests, ~10 s
+uv run pytest -q                          # 182 tests, ~20 s
 
 # terminal 1: mock STT/LLM/TTS provider, 20% failure rate
 uv run voice-agent mock --port 9000
@@ -33,7 +33,7 @@ uv run voice-agent loadtest               # 50 calls x 4 turns, compares both si
 uv run voice-agent chaos-demo             # baseline -> LLM outage -> recovery -> replay
 ```
 
-With Docker instead: `docker compose up --build`, then run `loadtest` / `chaos-demo` from the host.
+With Docker instead: `docker compose up --build`, then run `loadtest` / `chaos-demo` from the host. To use the DLQ CLI inside the container, run `docker compose exec agent voice-agent dlq list`.
 
 One turn by hand:
 
@@ -121,8 +121,11 @@ A 4xx means *our* request or configuration is wrong. The provider itself is heal
 - Retries stay inside the turn deadline: no backoff sleeps past it, no attempt starts with less than 50 ms left, and each attempt's timeout is `min(stage timeout, remaining budget)`. A hung provider costs at most one attempt timeout.
 
 **Circuit breaker** ([`breaker.py`](src/voice_agent/resilience/breaker.py)), one per stage:
-- **Opening:** it looks at a rolling window of the last 50 counted calls and opens when a *failure* brings the failure rate to ≥ 50% (with at least 20 calls in the window).
-- **Why those thresholds:** the baseline 20% failure rate must not trip it, and with these settings that happens with probability ≈ 10⁻⁶ per window. A real outage trips it within about 20 attempts.
+- **Opening:** it looks at a rolling window of the last 50 counted calls and opens when a *failure* brings the failure rate to ≥ 60% (with at least 20 calls in the window).
+- **Why those thresholds:** the baseline 20% failure rate must not trip it. I simulated the breaker class itself rather than relying on back-of-envelope binomials:
+  - At 50% the breaker false-tripped in 0.5% of 3,000-attempt runs, mostly during the 20-call warm-up.
+  - At 60% it never tripped in about 30 million attempts at a 20% failure rate.
+  - At 60% a real outage still trips it within 27 attempts, about 9 turns.
 - **While open:** for 5 s, calls are rejected immediately with `circuit_open`. Nothing is sent to the provider and the caller sees no added latency. A rejection is never retried.
 - **Half-open:** up to 5 probe calls are let through, and a majority decides. Mostly successes close the circuit with an empty window; mostly failures reopen it with a fresh cool-down. A single flaky probe can't cause flapping.
 - **Stale results:** each permit carries the breaker's epoch, so a slow call admitted before a state change can't be miscounted as a probe.
@@ -131,9 +134,15 @@ A 4xx means *our* request or configuration is wrong. The provider itself is heal
 
 **Degradation** ([`pipeline.py`](src/voice_agent/pipeline.py)). A turn is never dropped, and it is always recorded:
 1. The turn row is written (`in_progress`) before any provider is called.
-2. On failure, the turn is marked `degraded` and its dead-letter row is inserted, both in one transaction, before the response is sent. This covers provider errors, open circuits, blown deadlines, our own bugs, and cancellation (when the client disconnects).
+2. On failure, the turn is marked `degraded` and its dead-letter row is inserted, both in one transaction, before the response is sent. This covers provider errors, open circuits, blown deadlines, our own bugs, and cancellation (for example at shutdown). Finalization runs shielded from cancellation, so a recording that has started always finishes.
 3. The caller still gets **HTTP 200 with audio**: a pre-rendered fallback prompt that doesn't depend on the TTS stage that may have just failed, plus `action`. The action is `retry_prompt`, or `handoff` (transfer to a human / schedule a callback) after 2 consecutive degraded turns on the same call.
 4. A process crash mid-turn leaves an `in_progress` row behind. At the next start-up, `Store.recover()` marks those turns `interrupted` and dead-letters them.
+5. While the service runs, a **lease sweeper** (every 30 s) does the same for any turn untouched for longer than `max(60 s, 3 × turn deadline)`. It also returns any `replaying` claim older than that to `pending`. So even a failed database write can't strand a record until the next restart, and such a write never turns into a dropped call: the caller still gets their audio.
+6. Every state transition is guarded in SQL (`UPDATE … WHERE status = <expected>`), so a stale or concurrent writer can never skip or reverse a state.
+
+Duplicate turn ids (a telephony retry) never re-run the providers. They return `409` with the original outcome:
+- **Completed turns:** the reply text. Audio isn't stored, so it isn't returned.
+- **Degraded or in-progress turns:** the fallback prompt, both text and audio, for the stored `action`.
 
 `/health` never depends on provider health. That way a provider outage can't make the load balancer recycle orchestrator tasks that are degrading correctly. It still reports breaker states and DLQ counts. `/metrics` exposes Prometheus counters for attempts, retries, breaker state and transitions, turns, dead letters and replays.
 
@@ -161,7 +170,9 @@ The same operations are available over HTTP: `GET /v1/dlq`, `GET /v1/dlq/{id}`, 
 - **Running:** the stored turn re-runs through the *same* resilient pipeline and the same breakers. A provider that is still down fails fast instead of being hammered.
 - **Success:** the turn becomes `completed_on_replay`, with the transcript and reply recorded. The entry is marked `resolved`.
 - **Failure:** the entry returns to `pending`, with `replay_count + 1` and the error recorded.
-- **Bulk replay:** it ramps up one entry at a time while any circuit is half-open. As soon as one replay fails it stops and marks the rest `skipped` (untouched). Once every circuit is closed it runs 8 entries at a time.
+- **Open circuit:** while any circuit is open, a replay is `skipped` (HTTP 503) without being claimed or charged a `replay_count`. It would only fail fast.
+- **Bulk replay:** it always starts with a single canary replay, since a fresh CLI process's breakers know nothing of an ongoing outage. It also ramps up one entry at a time while any circuit is half-open. If a replay is deferred or fails for a provider-health reason, it stops and marks the rest `skipped` (untouched). A failure specific to one entry, such as an unusable payload, doesn't stop the batch. Once every circuit is closed it runs 8 entries at a time.
+- **CLI safety:** the CLI's `dlq replay` is safe to run while the service is running. It never runs recovery, so it can't reclaim the service's in-flight turns, and atomic claims prevent double replays.
 - **Purpose:** the live moment has passed, so a replay *completes the compliance record* (what the debtor said, what the agent would have said) and can drive a callback. It doesn't speak to the caller.
 
 ## Swapping in open-weight models
@@ -193,7 +204,7 @@ The mock's `POST /admin/chaos {"stage": "llm", "outage_s": 30}`, `{"failure_rate
 
 ## Tests
 
-`uv run pytest -q` runs 161 tests in about 10 s. CI also runs `ruff`, `ruff format --check`, `mypy --strict` and a Docker build.
+`uv run pytest -q` runs 182 tests in about 20 s. CI also runs `ruff`, `ruff format --check`, `mypy --strict` and a Docker build.
 
 - **Unit tests:** retry jitter bounds and determinism; every breaker transition, including stale-epoch outcomes and probe limits; and the stage composition, all with a fake clock.
 - **Adapter contract tests:** run with `httpx.MockTransport`.
@@ -217,5 +228,6 @@ Summary of [`docs/COST.md`](docs/COST.md). Assumptions: us-east-1 x86 on-demand,
 
 - **Distributed state:** breaker state is per process, which suits Fargate tasks that each protect themselves. The dead-letter store would become a managed queue plus a table (SQS + DynamoDB, or Postgres) instead of a local SQLite file.
 - **Data protection:** transcripts and audio in collections are sensitive. They need encryption at rest, a retention policy, and access audit on the DLQ.
+- **Authentication:** the API (including the DLQ endpoints, which expose audio and transcripts) has no auth, a stated non-goal for this local exercise. In production it would sit behind service-to-service auth.
 - **Streaming:** real calls stream audio (WebSocket/RTP) with partial transcripts. The turn-level boundary used here stays the same, and the stage timeouts become time-to-first-token budgets.
 - **Hedging:** hedged requests or a fallback provider per stage (for example, a smaller LLM when the primary's breaker is open) would let more turns complete instead of degrading.

@@ -60,3 +60,30 @@ def test_dlq_replay_requires_a_target(db: Path) -> None:
     with pytest.raises(SystemExit) as exc:
         main(["dlq", "replay"])
     assert exc.value.code == 2
+
+
+def test_cli_replay_never_reclaims_the_services_in_flight_turns(
+    db: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from tests.fakes import fake_providers
+
+    async def live_turn() -> None:
+        store = await Store.open(db)
+        await store.begin_turn("live-call", "t1", {"audio_b64": "aGk="})  # service is mid-turn
+        await store.close()
+
+    asyncio.run(live_turn())
+    providers, *_ = fake_providers()
+    monkeypatch.setattr("voice_agent.wiring.build_providers", lambda settings, client: providers)
+
+    assert main(["dlq", "replay", "--all"]) == 0
+    assert "resolved" in capsys.readouterr().out
+
+    async def check() -> None:
+        store = await Store.open(db)
+        turn = await store.get_turn("live-call", "t1")
+        assert turn is not None and turn.status == "in_progress"  # left alone
+        assert [d.status for d in await store.list_dead_letters()] == ["resolved"]
+        await store.close()
+
+    asyncio.run(check())

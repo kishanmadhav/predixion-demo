@@ -166,7 +166,7 @@ async def test_circuit_recovers_after_the_outage(outage_prone: Harness) -> None:
     assert h.runtime.stages["llm"].breaker.state == "open"
 
     await h.chaos(stage="llm", outage_s=0)  # provider comes back
-    await asyncio.sleep(0.4)  # breaker cool-down (0.3s) elapses
+    await asyncio.sleep(0.6)  # breaker cool-down (0.3s) elapses, with slack for slow CI
     assert h.runtime.stages["llm"].breaker.state == "half_open"
     after = await h.turns(10, prefix="recovered", concurrency=1)
 
@@ -183,7 +183,7 @@ async def test_dead_letters_from_an_outage_replay_cleanly_after_recovery(
     assert all(r.status is TurnStatus.DEGRADED for r in failed)
 
     await h.chaos(stage="tts", outage_s=0)
-    await asyncio.sleep(0.4)
+    await asyncio.sleep(0.6)  # breaker cool-down (0.3s), with slack for slow CI
     outcomes = await h.runtime.dlq.replay_pending()
 
     assert [o.status for o in outcomes] == ["resolved"] * 12
