@@ -6,6 +6,8 @@ A collections voice-agent inference service. Each caller turn goes through **STT
 - **Graceful degradation** to a pre-rendered fallback prompt.
 - **A dead-letter queue** that lives in SQLite and can be inspected and replayed. Every failed turn is written to it *before* the caller hears the fallback.
 
+**Round 2 (deploying this to AWS, ap-south-1): see [Round 2: AWS deployment](#round-2-aws-deployment-ap-south-1).** The rest of this README, up to that section, describes the Round 1 service that Round 2 builds on.
+
 A local mock provider stands in for STT/LLM/TTS. It adds realistic latency, fails 20% of requests, and can force outages on demand. The provider boundary is model-agnostic: open-weight models (faster-whisper, Ollama/vLLM/llama.cpp, Kokoro) replace the mock through configuration alone.
 
 | Brief | Where |
@@ -17,6 +19,8 @@ A local mock provider stands in for STT/LLM/TTS. It adds realistic latency, fail
 | No hardcoded secrets | Keys come only from env (`SecretStr`, no defaults); [`.env.example`](.env.example) is blank |
 | Runs from documented setup | [§ Quick start](#quick-start): `uv sync`, then 3 commands; or `docker compose up --build` |
 | Design spec | [`docs/superpowers/specs/…-design.md`](docs/superpowers/specs/2026-10-05-resilient-voice-agent-design.md) |
+| **Round 2:** AWS deployment, autoscaling, dashboard, teardown | [§ Round 2: AWS deployment (ap-south-1)](#round-2-aws-deployment-ap-south-1), [`infra/`](infra) |
+| **Round 2:** runbook, demo shot list, ap-south-1 notes | [`RUNBOOK.md`](RUNBOOK.md), [`docs/demo-shot-list.md`](docs/demo-shot-list.md), [`docs/ap-south-1-notes.md`](docs/ap-south-1-notes.md) |
 
 ## Quick start
 
@@ -24,7 +28,7 @@ You need Python ≥ 3.11 and [uv](https://docs.astral.sh/uv/). No AWS account, A
 
 ```bash
 uv sync                                   # install
-uv run pytest -q                          # 187 tests, ~15 s
+uv run pytest -q                          # 264 tests, ~40 s
 
 # terminal 1: mock STT/LLM/TTS provider, 20% failure rate
 uv run voice-agent mock --port 9000
@@ -190,7 +194,7 @@ The mock's `POST /admin/chaos {"stage": "llm", "outage_s": 30}`, `{"failure_rate
 
 ## Tests
 
-`uv run pytest -q` runs 187 tests in about 15 s. CI also runs `ruff`, `ruff format --check`, `mypy --strict` and a Docker build.
+`uv run pytest -q` runs 264 tests in about 40 s. CI also runs `ruff`, `ruff format --check`, `mypy --strict`, a Docker build and `terraform validate` on `infra/`.
 
 - **Unit tests:** retry jitter bounds and determinism; every breaker transition, including stale-epoch outcomes and probe limits; and the stage composition, all with a fake clock.
 - **Adapter contract tests:** run with `httpx.MockTransport`.
@@ -209,3 +213,214 @@ The mock's `POST /admin/chaos {"stage": "llm", "outage_s": 30}`, `{"failure_rate
 - **Authentication:** the API (including the DLQ endpoints, which expose audio and transcripts) has no auth, a stated non-goal for this local exercise. In production it would sit behind service-to-service auth.
 - **Streaming:** real calls stream audio (WebSocket/RTP) with partial transcripts. The turn-level boundary used here stays the same, and the stage timeouts become time-to-first-token budgets.
 - **Hedging:** hedged requests or a fallback provider per stage (for example, a smaller LLM when the primary's breaker is open) would let more turns complete instead of degrading.
+
+---
+
+## Round 2: AWS deployment (ap-south-1)
+
+The Round 1 service, deployed to a fresh AWS account in ap-south-1 as a production-shaped system. One `terraform apply` builds everything (nothing from the console); it runs a scripted campaign against real open-weight STT/LLM/TTS models on one GPU instance with Round 1's 20% fault injection in front of them, autoscales on in-flight calls, is observable from one CloudWatch dashboard, and is torn down with `terraform destroy` plus a log proving nothing billable remains.
+
+Other documents: [`RUNBOOK.md`](RUNBOOK.md) (what to do when the latency alarm fires), [`docs/demo-shot-list.md`](docs/demo-shot-list.md) (5-minute recording plan with commands), [`docs/ap-south-1-notes.md`](docs/ap-south-1-notes.md) (data residency, latency, AZs, DR), and the design spec [`docs/superpowers/specs/2026-10-07-round2-aws-design.md`](docs/superpowers/specs/2026-10-07-round2-aws-design.md).
+
+### Architecture
+
+```
+ laptop load generator ──HTTP──► ALB (public subnets, SG: allowed CIDRs only)
+                                   │  sticky sessions: one call stays on one task
+                                   ▼
+             ECS Fargate service "voice-agent" (private subnets, 2 AZs, min 2 / max 10 tasks)
+               │  ActiveCalls (EMF) ──► target tracking   + scheduled pre-warm for campaign window
+               │  DynamoDB (gateway endpoint): turns + dead letters, transactional
+               ▼
+             internal NLB ──► GPU host (private subnet, ASG min=max=1, g5.xlarge, Deep Learning AMI)
+                                docker compose:
+                                  chaos-proxy :8080  (20% injected failures, outage switch) ──┐
+                                  vLLM        :8000  Qwen2.5-7B-Instruct-AWQ  ◄───────────────┤
+                                  Speaches    :8001  faster-whisper (STT) + Kokoro (TTS) ◄────┘
+ NAT gateway (1) for egress: image + model downloads; S3/DynamoDB gateway endpoints bypass it
+```
+
+With `model_tier = "mock"` the internal NLB fronts the Round 1 mock provider on Fargate instead of the GPU host. That is a cheap way to check all the infrastructure before paying for a GPU.
+
+### Prerequisites
+
+- An AWS account on the Free plan (this one has $100 of credit).
+- If the account sits in an AWS Organization, the organization's SCP must allow EC2, ECS, ELB, DynamoDB, CloudWatch, Logs, ECR, SSM and Auto Scaling in ap-south-1. Otherwise `apply` fails with access-denied errors that name no policy.
+- A quota of at least 4 vCPUs for "Running On-Demand G and VT instances" (quota code `L-DB2E81BA`). New accounts start at 0. Request it on day one, because approval can take a day or more:
+
+  ```bash
+  aws service-quotas get-service-quota --service-code ec2 --quota-code L-DB2E81BA --profile predixion
+  aws service-quotas request-service-quota-increase --service-code ec2 --quota-code L-DB2E81BA --desired-value 4 --profile predixion
+  ```
+- Docker Desktop, running, for every `terraform` command including `destroy`. Terraform builds and pushes the app image through the docker provider (`docker_host` defaults to the Windows named pipe; on Linux or macOS set `docker_host = "unix:///var/run/docker.sock"`).
+- Terraform 1.9 or later, AWS CLI v2, and [uv](https://docs.astral.sh/uv/).
+
+### One-time setup
+
+**1. The `predixion` profile.** All commands use a profile of that name, scoped to this project:
+
+```bash
+aws configure --profile predixion          # access key, secret, default region ap-south-1, output json
+aws sts get-caller-identity --profile predixion
+```
+
+**2. A budget that cannot be fooled by the credit.** The credit would hide real spend from a normal budget, so this one is a $100 gross-spend budget (`IncludeCredit` is false) with alerts at 10, 25, 50 and 80% of actual spend and at 100% of forecast. It was created once with the command below (the file contents are shown as a shape: the name is your choice, and the email address and account id are placeholders) (Budgets is a global service served from us-east-1):
+
+```bash
+aws budgets create-budget --account-id <ACCOUNT_ID> --budget file://budget.json --notifications-with-subscribers file://notifs.json --profile predixion --region us-east-1
+```
+
+`budget.json`:
+
+```json
+{
+  "BudgetName": "predixion-gross-spend",
+  "BudgetType": "COST",
+  "TimeUnit": "MONTHLY",
+  "BudgetLimit": { "Amount": "100", "Unit": "USD" },
+  "CostTypes": {
+    "IncludeTax": true, "IncludeSubscription": true, "IncludeSupport": true,
+    "IncludeRefund": false, "IncludeCredit": false, "IncludeUpfront": true,
+    "IncludeRecurring": true, "IncludeOtherSubscription": true,
+    "IncludeDiscount": true, "UseAmortized": false, "UseBlended": false
+  }
+}
+```
+
+`notifs.json` has one entry per threshold (the others are the same with 25, 50 and 80, and a final one with `"NotificationType": "FORECASTED"` and `"Threshold": 100`):
+
+```json
+[
+  {
+    "Notification": {
+      "NotificationType": "ACTUAL",
+      "ComparisonOperator": "GREATER_THAN",
+      "Threshold": 10,
+      "ThresholdType": "PERCENTAGE"
+    },
+    "Subscribers": [{ "SubscriptionType": "EMAIL", "Address": "you@example.com" }]
+  }
+]
+```
+
+**3. `terraform.tfvars`.** Copy the example and edit it (the file is git-ignored):
+
+```bash
+cp infra/terraform.tfvars.example infra/terraform.tfvars
+```
+
+Set `allowed_cidrs` to your own public IP (`curl -s https://checkip.amazonaws.com` and add `/32`): the ALB accepts traffic only from there. `alert_email` is optional; if set, accept the SNS confirmation email. The variables you are likely to change:
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `allowed_cidrs` | none (required) | Who can reach the ALB |
+| `model_tier` | `mock` | `mock` (Fargate mock provider) or `gpu` (g5.xlarge with vLLM and Speaches) |
+| `min_tasks` / `max_tasks` | 2 / 10 | Fargate task floor and ceiling |
+| `target_active_calls` | 10 | Autoscaling target, active calls per task |
+| `campaign_prewarm` | none | `{ start, end, min_tasks }`, `at(...)` or `cron(...)` in UTC |
+| `failure_rate` | 0.2 | Injected provider failure rate (changing it replaces the GPU host) |
+| `baseline_p99_ms` | 3000 | The latency alarm fires above 3x this |
+| `gpu_max_hours` | 4 | Dead-man switch: the GPU scales to zero this long after creation |
+| `docker_host` | Windows named pipe | Docker daemon address |
+
+### Deploy
+
+All Terraform commands run from the repo root through `-chdir=infra`. The sequence:
+
+```bash
+# 1. Caller utterances (the six WAVs in assets/utterances are committed; this regenerates them, Windows only)
+powershell -File scripts/make_utterances.ps1
+
+# 2. Init, then check the IAM policies before anything is created
+terraform -chdir=infra init
+terraform -chdir=infra plan -out=tfplan
+terraform -chdir=infra show -json tfplan > infra/plan.json
+uv run python scripts/check_iam.py infra/plan.json     # fails on any "*" action or AWS-managed policy
+
+# 3. Apply the cheap mock tier first, to prove the infrastructure
+terraform -chdir=infra apply tfplan
+URL=$(terraform -chdir=infra output -raw url)
+
+# 4. Smoke test: a short campaign (1 minute, 10 calls/min, 2 turns, 5 s apart)
+curl -s $URL/health
+uv run voice-agent campaign --url $URL --profile smoke:1:10 --turns 2 --gap 5
+
+# 5. Switch to the GPU tier: set model_tier = "gpu" in infra/terraform.tfvars, then
+docker manifest inspect vllm/vllm-openai:v0.31.0 > /dev/null      # the image tag must exist
+terraform -chdir=infra apply
+# The GPU host downloads about 11 GB of images and 7 GB of model weights: allow 15-20 minutes
+# before the "Model tier health (NLB healthy hosts)" widget shows 1.
+
+# 6. The campaign: 10 min at 10 calls/min, 15 min at 50 calls/min, 10 min at 10 calls/min
+mkdir -p results
+uv run voice-agent campaign --url $URL --json-out results/campaign.json
+
+# 7. While it runs (during the spike): chaos, then replay
+uv run python scripts/chaos.py outage --stage llm --seconds 60
+curl -s -X POST "$URL/v1/dlq/replay?limit=1000"
+
+# 8. Tear down, then prove it
+terraform -chdir=infra destroy
+uv run python scripts/teardown_check.py
+```
+
+Notes:
+- The first `apply` also builds and pushes the app image (a few minutes) and waits for the ECS service to reach steady state.
+- `chaos.py` works only with `model_tier = "gpu"` (it reaches the chaos proxy over SSM). Flags: `stats`, `reset`, `outage --stage {stt,llm,tts} --seconds N`, `rate --rate 0.2 [--stage ...]`.
+- The campaign `--profile` option is the traffic profile as `name:minutes:calls_per_min,...`, not an AWS profile. Its exit code is 1 if any HTTP request failed; the target is 0 failures.
+- Some policy values are only known after apply. If the check prints "resolve at apply", re-run it on the state once the stack is up: `terraform -chdir=infra show -json > infra/plan.json`, then `uv run python scripts/check_iam.py infra/plan.json`.
+- Applying `tfplan` (step 3) uses the exact plan that was IAM-checked. Later applies prompt for confirmation.
+- `terraform output` shows `url`, `dashboard_url`, `cluster`, `models_endpoint`, `gpu_asg`, `state_table` and `app_image`.
+- `teardown_check.py` writes `teardown/teardown-check-<UTC>.log` and exits 0 only when nothing is left in the region (instances, NAT gateways, load balancers, Elastic IPs, volumes, ENIs, and the rest). Commit that log.
+- Operating it, and what changes are expensive to apply, is in [`RUNBOOK.md`](RUNBOOK.md).
+
+### Cost
+
+Estimated, not measured. The ap-south-1 on-demand prices were checked on 2026-10-07, assuming the stack is up for about 6 hours in total (build and debug, a rehearsal, the recorded demo), the GPU runs about 5 hours and boots twice, and Fargate averages 4 tasks.
+
+| Item | Unit price | Usage | Estimate |
+|---|---|---|---|
+| g5.xlarge | $1.208/h | 5 h | $6.04 |
+| NAT gateway, hourly | $0.056/h | 6 h | $0.34 |
+| NAT gateway, data | $0.056/GB | ~40 GB (images and model weights, 2 boots) | $2.24 |
+| Fargate 1 vCPU / 2 GB | $0.05187/task-h | ~24 task-h | $1.25 |
+| CloudWatch (EMF metrics, Container Insights, logs) | $0.30/metric-month, prorated hourly | ~30 metrics, under 1 GB logs | ~$1.00 |
+| ALB + internal NLB | $0.0239/h each + LCU | 6 h | ~$0.40 |
+| Public IPv4 (NAT EIP + 2 ALB) | $0.005/h each | 6 h | $0.09 |
+| EBS gp3 (GPU root, 100 GB) | $0.0912/GB-month | 6 h | $0.08 |
+| DynamoDB on-demand, ECR, data out, Budgets | | tiny / free tier | ~$0.05 |
+| **Subtotal** | | | **~$11.50** |
+| **With 20% contingency** | | | **~$14 (about ₹1,200)** |
+
+The GPU and the NAT data dominate, and each extra GPU hour costs about $1.30. The two levers are destroying the stack between sessions and the GPU dead-man switch. These are estimates; measured numbers from Cost Explorer and CloudWatch will replace them after the demo run.
+
+| | Estimate | Measured (to be filled after the demo) |
+|---|---|---|
+| Total | ~$11.50 (~$14 with contingency) | |
+| GPU hours | 5 | |
+| NAT data | ~40 GB | |
+
+### Design decisions, in short
+
+1. **Model tier is EC2 with docker compose**, not ECS-on-EC2 or SageMaker. Only one GPU fits the quota and three model servers must share it; ECS gives a GPU to one container exclusively, and SageMaker wants one GPU instance per endpoint. An ASG (min = max = 1) keeps the host self-healing and an internal NLB gives it a stable address.
+2. **Fault injection is a proxy mode of the Round 1 mock** (`voice-agent chaos-proxy`). It applies the same 20% failure mix and forwards healthy requests to vLLM and Speaches by path. The service talks to it through the `openai` adapters, which is the Round 1 swap story.
+3. **DynamoDB replaces SQLite**, because Fargate disks are per-task and a scale-in would lose dead letters. One table holds turns and dead letters; `TransactWriteItems` keeps "turn degraded plus dead letter written" atomic. SQS was rejected for the system of record because a send cannot join that transaction. Both store backends pass the same contract tests.
+4. **Autoscaling is on ActiveCalls per task** (target 10, min 2, max 10), emitted as a CloudWatch EMF metric; ALB stickiness keeps each call on one task. A scheduled action pre-warms before a known campaign window.
+5. **Observability is EMF plus ALB and Container Insights metrics**, with one dashboard (traffic, capacity, dependencies) and alarms for p99 latency over 3x baseline, 5xx, open breakers and DLQ growth.
+6. **IAM uses custom policies with explicit actions only.** `scripts/check_iam.py` fails on any `*` action or AWS-managed policy attachment; the checker has its own tests in `tests/scripts`.
+7. **Cost guardrails live in the IaC:** the budget above, a GPU dead-man switch, and `teardown_check.py`.
+8. **State and secrets:** Terraform state is local and git-ignored (an S3 backend with a lockfile is the team setup); there are no secrets, as model servers need no keys and the deployer uses its own CLI profile.
+
+### Deliverables
+
+| Deliverable | Where |
+|---|---|
+| Terraform that builds and tears down everything | [`infra/`](infra); CI runs `terraform fmt -check`, `init -backend=false` and `validate` |
+| Service changes for AWS (DynamoDB store, EMF metrics, call tracking, `campaign` command, chaos proxy) | [`src/voice_agent`](src/voice_agent), [`src/mock_provider`](src/mock_provider) |
+| Scripts | [`scripts/chaos.py`](scripts/chaos.py), [`scripts/check_iam.py`](scripts/check_iam.py), [`scripts/teardown_check.py`](scripts/teardown_check.py), [`scripts/make_utterances.ps1`](scripts/make_utterances.ps1) |
+| Runbook | [`RUNBOOK.md`](RUNBOOK.md) |
+| 5-minute demo shot list | [`docs/demo-shot-list.md`](docs/demo-shot-list.md) |
+| ap-south-1 notes | [`docs/ap-south-1-notes.md`](docs/ap-south-1-notes.md) |
+| Cost write-up | This section holds the estimate. The one-page PDF (Round 1 cost, and the swap-the-mock paragraph) is sent separately and is not in the repo, and Round 2's measured numbers are added after the demo |
+| Teardown proof | `teardown/*.log`, written by `teardown_check.py` and committed after the destroy |
+| Reimbursement | The billing PDF is supplied separately by the account owner |
