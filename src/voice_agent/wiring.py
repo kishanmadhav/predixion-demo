@@ -21,7 +21,7 @@ from voice_agent.providers.factory import Providers, build_providers
 from voice_agent.resilience.breaker import CircuitBreaker
 from voice_agent.resilience.retry import RetryPolicy
 from voice_agent.resilience.stage import ResilientStage
-from voice_agent.store import Store
+from voice_agent.store import Store, open_store
 
 STAGE_NAMES = ("stt", "llm", "tts")
 
@@ -125,7 +125,7 @@ async def open_runtime(
     `recover=False` is for tools (the CLI) that open the database while the service
     may be running: only the service may reclaim in-flight work.
     """
-    store = await Store.open(settings.db_path)
+    store = await open_store(settings)
     try:
         return await _wire(settings, store, providers=providers, client=client, recover=recover)
     except BaseException:

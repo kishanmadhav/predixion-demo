@@ -17,7 +17,7 @@ import sys
 from typing import Any
 
 from voice_agent.config import Settings
-from voice_agent.store import DEAD_LETTER_STATUSES, DeadLetter, Store
+from voice_agent.store import DEAD_LETTER_STATUSES, DeadLetter, open_store
 
 
 def _configure_logging(level: str) -> None:
@@ -92,7 +92,7 @@ async def _dlq(args: argparse.Namespace) -> int:
             print(f"{o.id:>6}  {o.status:<15} {o.error or ''}")
         return 0 if all(o.status == "resolved" for o in outcomes) else 1
 
-    store = await Store.open(settings.db_path)
+    store = await open_store(settings)
     try:
         if args.dlq_command == "list":
             entries = await store.list_dead_letters(status=args.status, limit=args.limit)
