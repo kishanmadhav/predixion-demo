@@ -130,7 +130,7 @@ Fill in the placeholders when the stack is deployed, and do not leave any in a l
    curl -s -X POST "$URL/v1/dlq/replay?limit=1000"
    ```
 
-   Replay is canary-first: it replays one entry, and continues (8 at a time) only after one has resolved and every breaker is closed. While any breaker is open it refuses with HTTP 503 and changes nothing. It is safe to repeat: entries that fail go back to `pending` with their replay count incremented. Use the HTTP endpoint rather than `voice-agent dlq replay`, because the CLI on your laptop cannot reach the internal model tier. Check the result with `curl -s "$URL/v1/dlq?status=pending"` and the "Dead-letter queue" widget (resolved by replay).
+   Replay is canary-first: it replays one entry, and continues (8 at a time) only after one has resolved and every breaker is closed. While any breaker is open it replays nothing: the bulk call returns HTTP 200 with every entry marked `skipped` (the single-entry endpoint `POST /v1/dlq/{id}/replay` returns 503), and no entry is charged a replay. It is safe to repeat: entries that fail go back to `pending` with their replay count incremented. Use the HTTP endpoint rather than `voice-agent dlq replay`, because the CLI on your laptop cannot reach the internal model tier. Check the result with `curl -s "$URL/v1/dlq?status=pending"` and the "Dead-letter queue" widget (resolved by replay).
 3. **Record actual versus expected.**
 
    | Measure | Expected | Actual |

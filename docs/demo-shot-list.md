@@ -65,7 +65,7 @@ curl -s -X POST "$URL/v1/dlq/replay?limit=1000"
 curl -s "$URL/v1/dlq?status=pending&limit=5" # shrinking; run the replay again for stragglers
 ```
 
-Replay returns HTTP 503 while a breaker is still open; wait a few seconds and repeat. Entries that fail go back to `pending` and are picked up by the next replay.
+While a breaker is still open the replay marks every entry `skipped` and changes nothing; wait a few seconds and repeat. Entries that fail go back to `pending` and are picked up by the next replay.
 
 **4:15-5:00 (end).** When the campaign finishes, show its summary table (also in `results/campaign.txt`). Then:
 
