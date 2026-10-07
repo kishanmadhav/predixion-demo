@@ -778,7 +778,8 @@ class DynamoStore:
 
     async def consecutive_degraded(self, call_id: str) -> int:
         finished = [
-            t for t in reversed(await self._call_turns(call_id))
+            t
+            for t in reversed(await self._call_turns(call_id))
             if t["status"] != TurnStatus.IN_PROGRESS
         ][:50]
         count = 0
@@ -832,9 +833,7 @@ class DynamoStore:
     # -- dead letters ---------------------------------------------------------
 
     async def _set_dead_letter_status(self, dlq_id: int, expected: str, new: str) -> bool:
-        args = _update(
-            {"status": new, "gsi1pk": f"DLQ#{new}"}, condition={"status": expected}
-        )
+        args = _update({"status": new, "gsi1pk": f"DLQ#{new}"}, condition={"status": expected})
         try:
             await self._call("update_item", TableName=self._table, Key=_dlq_key(dlq_id), **args)
         except ClientError as exc:
@@ -922,9 +921,7 @@ class DynamoStore:
 
         async def work() -> bool:
             try:
-                await self._call(
-                    "update_item", TableName=self._table, Key=_dlq_key(dlq_id), **args
-                )
+                await self._call("update_item", TableName=self._table, Key=_dlq_key(dlq_id), **args)
             except ClientError as exc:
                 if _condition_failed(exc):
                     return False
@@ -995,19 +992,42 @@ async def test_dead_letter_ids_are_unique_and_increasing(dynamo) -> None:
     ids = []
     for n in range(3):
         await store.begin_turn("c1", f"t{n}", {"audio_b64": "AAAA"})
-        ids.append(await store.degrade_turn("c1", f"t{n}", failed_stage="llm", error_kind="server_error",
-                                            error_detail="x", attempts=[], partial={}))
+        ids.append(
+            await store.degrade_turn(
+                "c1",
+                f"t{n}",
+                failed_stage="llm",
+                error_kind="server_error",
+                error_detail="x",
+                attempts=[],
+                partial={},
+            )
+        )
     assert ids == sorted(ids) and len(set(ids)) == 3
 
 
 async def test_a_turn_is_never_dead_lettered_twice(dynamo) -> None:
     _, store = dynamo
     await store.begin_turn("c1", "t1", {"audio_b64": "AAAA"})
-    await store.degrade_turn("c1", "t1", failed_stage="llm", error_kind="server_error",
-                             error_detail="x", attempts=[], partial={})
+    await store.degrade_turn(
+        "c1",
+        "t1",
+        failed_stage="llm",
+        error_kind="server_error",
+        error_detail="x",
+        attempts=[],
+        partial={},
+    )
     with pytest.raises(LookupError):
-        await store.degrade_turn("c1", "t1", failed_stage="llm", error_kind="server_error",
-                                 error_detail="x", attempts=[], partial={})
+        await store.degrade_turn(
+            "c1",
+            "t1",
+            failed_stage="llm",
+            error_kind="server_error",
+            error_detail="x",
+            attempts=[],
+            partial={},
+        )
     assert (await store.dead_letter_counts())["pending"] == 1
 
 
@@ -1015,9 +1035,12 @@ async def test_finished_turns_leave_the_status_index(dynamo) -> None:
     client, store = dynamo
     await store.begin_turn("c1", "t1", {"audio_b64": "AAAA"})
     await store.complete_turn("c1", "t1", {"transcript": "a", "reply_text": "b"}, [])
-    page = client.query(TableName="test-state", IndexName="by_status",
-                        KeyConditionExpression="gsi1pk = :pk",
-                        ExpressionAttributeValues={":pk": {"S": "TURN#in_progress"}})
+    page = client.query(
+        TableName="test-state",
+        IndexName="by_status",
+        KeyConditionExpression="gsi1pk = :pk",
+        ExpressionAttributeValues={":pk": {"S": "TURN#in_progress"}},
+    )
     assert page["Items"] == []
 
 
@@ -1025,8 +1048,15 @@ async def test_list_dead_letters_pages_past_one_query_page(dynamo) -> None:
     _, store = dynamo
     for n in range(120):
         await store.begin_turn("c1", f"t{n}", {"audio_b64": "AAAA"})
-        await store.degrade_turn("c1", f"t{n}", failed_stage="llm", error_kind="server_error",
-                                 error_detail="x", attempts=[], partial={})
+        await store.degrade_turn(
+            "c1",
+            f"t{n}",
+            failed_stage="llm",
+            error_kind="server_error",
+            error_detail="x",
+            attempts=[],
+            partial={},
+        )
     assert len(await store.list_dead_letters(limit=1000)) == 120
     assert (await store.dead_letter_counts())["pending"] == 120
 ```
@@ -1254,7 +1284,9 @@ from voice_agent.emf import EmfReporter
 
 
 def reporter() -> EmfReporter:
-    return EmfReporter(namespace="CollectionsChallenge", service="voice-agent", clock=lambda: 1700000000.0)
+    return EmfReporter(
+        namespace="CollectionsChallenge", service="voice-agent", clock=lambda: 1700000000.0
+    )
 
 
 def service_doc(docs: list[dict]) -> dict:
@@ -1303,14 +1335,18 @@ def test_stage_documents_carry_attempts_failures_retries_and_breaker_state() -> 
     r.attempt("llm", "error", retry=True)
     r.attempt("llm", "rejected", retry=True)
     r.breaker("llm", 2)
-    docs = [d for d in r.flush(active_calls=0, in_flight=0, dlq_pending=None) if d.get("Stage") == "llm"]
+    docs = [
+        d for d in r.flush(active_calls=0, in_flight=0, dlq_pending=None) if d.get("Stage") == "llm"
+    ]
     assert len(docs) == 1
     doc = docs[0]
     assert doc["_aws"]["CloudWatchMetrics"][0]["Dimensions"] == [["ServiceName", "Stage"]]
     assert doc["ProviderAttempts"] == 3 and doc["ProviderFailures"] == 1 and doc["Retries"] == 1
     assert doc["BreakerState"] == 2
     # breaker state is a gauge: still reported on the next flush
-    nxt = [d for d in r.flush(active_calls=0, in_flight=0, dlq_pending=None) if d.get("Stage") == "llm"][0]
+    nxt = [
+        d for d in r.flush(active_calls=0, in_flight=0, dlq_pending=None) if d.get("Stage") == "llm"
+    ][0]
     assert nxt["BreakerState"] == 2 and nxt["ProviderAttempts"] == 0
 ```
 
@@ -1458,22 +1494,24 @@ Run `uv run pytest tests/test_emf.py -q`. Expected: PASS.
   - Add these methods:
 
 ```python
-    def observe_turn(self, status: str, seconds: float | None) -> None:
-        self.turns.labels(status).inc()
-        if seconds is not None:
-            self.turn_seconds.labels(status).observe(seconds)
-        if self.emf:
-            self.emf.turn(status, seconds)
+def observe_turn(self, status: str, seconds: float | None) -> None:
+    self.turns.labels(status).inc()
+    if seconds is not None:
+        self.turn_seconds.labels(status).observe(seconds)
+    if self.emf:
+        self.emf.turn(status, seconds)
 
-    def observe_dead_letter(self, reason: str) -> None:
-        self.dead_letters.labels(reason).inc()
-        if self.emf:
-            self.emf.dead_letter()
 
-    def observe_replay(self, status: str) -> None:
-        self.replays.labels(status).inc()
-        if self.emf:
-            self.emf.replay(status)
+def observe_dead_letter(self, reason: str) -> None:
+    self.dead_letters.labels(reason).inc()
+    if self.emf:
+        self.emf.dead_letter()
+
+
+def observe_replay(self, status: str) -> None:
+    self.replays.labels(status).inc()
+    if self.emf:
+        self.emf.replay(status)
 ```
 
   - `observe_attempt` also calls `self.emf.attempt(stage, record.outcome, retry=record.attempt > 1 and record.outcome != "rejected")`.
@@ -1657,18 +1695,31 @@ def upstream() -> FastAPI:
 
 def proxy(rate: float) -> httpx.AsyncClient:
     up = httpx.AsyncClient(transport=httpx.ASGITransport(app=upstream()), base_url="http://up")
-    config = ProxyConfig(chaos=MockConfig(failure_rate=rate, seed=1, hang_s=0.05),
-                         llm_upstream="http://up", audio_upstream="http://up", timeout_s=5)
+    config = ProxyConfig(
+        chaos=MockConfig(failure_rate=rate, seed=1, hang_s=0.05),
+        llm_upstream="http://up",
+        audio_upstream="http://up",
+        timeout_s=5,
+    )
     app = create_proxy_app(config, client=up)
     return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://proxy")
 
 
 async def test_healthy_requests_reach_the_real_servers_through_the_openai_adapters() -> None:
     async with proxy(0.0) as c:
-        assert await OpenAICompatLlm(c, "http://proxy/v1", model="m").complete(
-            [ChatMessage("user", "hi")]) == "echo:m"
-        assert await OpenAICompatStt(c, "http://proxy/v1", model="w").transcribe(b"RIFF") == "heard w"
-        assert await OpenAICompatTts(c, "http://proxy/v1", model="k", voice="v").synthesize("hi") == b"RIFF....WAVE"
+        assert (
+            await OpenAICompatLlm(c, "http://proxy/v1", model="m").complete(
+                [ChatMessage("user", "hi")]
+            )
+            == "echo:m"
+        )
+        assert (
+            await OpenAICompatStt(c, "http://proxy/v1", model="w").transcribe(b"RIFF") == "heard w"
+        )
+        assert (
+            await OpenAICompatTts(c, "http://proxy/v1", model="k", voice="v").synthesize("hi")
+            == b"RIFF....WAVE"
+        )
         stats = (await c.get("/admin/stats")).json()["stages"]
         assert stats["llm"]["ok"] == 1 and stats["stt"]["ok"] == 1 and stats["tts"]["ok"] == 1
 
@@ -1677,9 +1728,13 @@ async def test_healthy_requests_reach_the_real_servers_through_the_openai_adapte
 async def test_injected_failures_surface_as_retryable_provider_errors(stage: str) -> None:
     async with proxy(1.0) as c:
         adapters = {
-            "llm": lambda: OpenAICompatLlm(c, "http://proxy/v1", model="m").complete([ChatMessage("user", "hi")]),
+            "llm": lambda: OpenAICompatLlm(c, "http://proxy/v1", model="m").complete(
+                [ChatMessage("user", "hi")]
+            ),
             "stt": lambda: OpenAICompatStt(c, "http://proxy/v1", model="w").transcribe(b"RIFF"),
-            "tts": lambda: OpenAICompatTts(c, "http://proxy/v1", model="k", voice="v").synthesize("hi"),
+            "tts": lambda: OpenAICompatTts(c, "http://proxy/v1", model="k", voice="v").synthesize(
+                "hi"
+            ),
         }
         kinds = set()
         for _ in range(40):
@@ -1788,10 +1843,14 @@ def create_proxy_app(config: ProxyConfig, *, client: httpx.AsyncClient | None = 
         body = await request.body()
         headers = {"content-type": request.headers.get("content-type", "application/json")}
         try:
-            upstream_response = await http.post(upstreams[upstream] + path, content=body, headers=headers)
+            upstream_response = await http.post(
+                upstreams[upstream] + path, content=body, headers=headers
+            )
         except httpx.HTTPError as exc:
             stats["upstream_error"] += 1
-            return JSONResponse({"error": f"upstream unreachable: {type(exc).__name__}"}, status_code=502)
+            return JSONResponse(
+                {"error": f"upstream unreachable: {type(exc).__name__}"}, status_code=502
+            )
         stats["ok" if upstream_response.status_code < 400 else "upstream_error"] += 1
         return Response(
             upstream_response.content,
@@ -1811,10 +1870,13 @@ def create_proxy_app(config: ProxyConfig, *, client: httpx.AsyncClient | None = 
             return JSONResponse({"error": "internal error"}, status_code=500)
         if outcome == "http_429":
             retry_after = f"{state.rng.uniform(0.1, 0.5):.2f}"
-            return JSONResponse({"error": "rate limited"}, status_code=429, headers={"Retry-After": retry_after})
+            return JSONResponse(
+                {"error": "rate limited"}, status_code=429, headers={"Retry-After": retry_after}
+            )
         return MALFORMED[stage]
 
     for route in ROUTES:
+
         async def handler(request: Request, _path: str = route) -> Response:
             return await forward(_path, request)
 
@@ -1855,7 +1917,12 @@ def _chaos_proxy(args: argparse.Namespace) -> None:
     from mock_provider.proxy import ProxyConfig, create_proxy_app
 
     _configure_logging("INFO")
-    uvicorn.run(create_proxy_app(ProxyConfig.from_env()), host=args.host, port=args.port, log_level="warning")
+    uvicorn.run(
+        create_proxy_app(ProxyConfig.from_env()),
+        host=args.host,
+        port=args.port,
+        log_level="warning",
+    )
 ```
 
 Dispatch it in `main`. Add a test to `tests/test_cli.py`: `build_parser().parse_args(["chaos-proxy"])` gives `host == "0.0.0.0"` and `port == 8080`.
@@ -1899,7 +1966,8 @@ from voice_agent.campaign import Campaign, Phase, make_client, parse_profile
 
 def test_parse_profile() -> None:
     assert parse_profile("baseline:10:10, spike:15:50") == [
-        Phase("baseline", 10.0, 10.0), Phase("spike", 15.0, 50.0)
+        Phase("baseline", 10.0, 10.0),
+        Phase("spike", 15.0, 50.0),
     ]
     with pytest.raises(ValueError):
         parse_profile("baseline:10")
@@ -1911,16 +1979,33 @@ def fake_service(seen: list[httpx.Request]) -> httpx.MockTransport:
         if request.url.path.endswith("/end"):
             return httpx.Response(200, json={"was_active": True})
         headers = {"set-cookie": "AWSALB=task-7; Path=/"}
-        return httpx.Response(200, headers=headers, json={
-            "status": "completed", "action": "continue", "error_kind": None, "failed_stage": None})
+        return httpx.Response(
+            200,
+            headers=headers,
+            json={
+                "status": "completed",
+                "action": "continue",
+                "error_kind": None,
+                "failed_stage": None,
+            },
+        )
+
     return httpx.MockTransport(handler)
 
 
 async def test_calls_stay_sticky_and_are_ended() -> None:
     seen: list[httpx.Request] = []
     async with make_client("http://svc", transport=fake_service(seen)) as client:
-        campaign = Campaign(client, [Phase("burst", 0.02, 300)], audio=[b"RIFF"], turns_per_call=2,
-                            gap_s=0.01, rng=random.Random(1), progress_every_s=999, out=lambda _: None)
+        campaign = Campaign(
+            client,
+            [Phase("burst", 0.02, 300)],
+            audio=[b"RIFF"],
+            turns_per_call=2,
+            gap_s=0.01,
+            rng=random.Random(1),
+            progress_every_s=999,
+            out=lambda _: None,
+        )
         stats = await campaign.run()
     turns = [r for r in seen if r.url.path.endswith("/turns")]
     ends = [r for r in seen if r.url.path.endswith("/end")]
@@ -1939,9 +2024,18 @@ async def test_calls_stay_sticky_and_are_ended() -> None:
 async def test_http_failures_are_counted_not_raised() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(502, json={})
+
     async with make_client("http://svc", transport=httpx.MockTransport(handler)) as client:
-        campaign = Campaign(client, [Phase("p", 0.02, 300)], audio=[b"RIFF"], turns_per_call=1,
-                            gap_s=0.0, rng=random.Random(2), progress_every_s=999, out=lambda _: None)
+        campaign = Campaign(
+            client,
+            [Phase("p", 0.02, 300)],
+            audio=[b"RIFF"],
+            turns_per_call=1,
+            gap_s=0.0,
+            rng=random.Random(2),
+            progress_every_s=999,
+            out=lambda _: None,
+        )
         stats = await campaign.run()
     assert stats["p"].http_failures == stats["p"].calls_started >= 1
 ```
@@ -2298,7 +2392,7 @@ def instance_id(ec2: object) -> str:
     )["Reservations"]
     ids = [i["InstanceId"] for r in reservations for i in r["Instances"]]
     if not ids:
-        sys.exit("no running GPU host (is model_tier = \"gpu\" applied?)")
+        sys.exit('no running GPU host (is model_tier = "gpu" applied?)')
     return str(ids[0])
 
 
@@ -2310,7 +2404,9 @@ def curl(method: str, path: str, body: dict[str, object] | None) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--profile", default="predixion")
     parser.add_argument("--region", default="ap-south-1")
     sub = parser.add_subparsers(dest="action", required=True)
@@ -2398,14 +2494,20 @@ def doc_resource(name: str, statements: list[dict]) -> dict:
         "address": f"data.aws_iam_policy_document.{name}",
         "mode": "data",
         "type": "aws_iam_policy_document",
-        "expressions": {"statement": [
-            {k: {"constant_value": v} for k, v in s.items()} for s in statements
-        ]},
+        "expressions": {
+            "statement": [{k: {"constant_value": v} for k, v in s.items()} for s in statements]
+        },
     }
 
 
 def test_explicit_actions_pass() -> None:
-    doc = plan([doc_resource("task", [{"effect": "Allow", "actions": ["dynamodb:GetItem"], "resources": ["*"]}])])
+    doc = plan(
+        [
+            doc_resource(
+                "task", [{"effect": "Allow", "actions": ["dynamodb:GetItem"], "resources": ["*"]}]
+            )
+        ]
+    )
     assert findings(doc) == []
 
 
@@ -2422,20 +2524,45 @@ def test_not_actions_fails() -> None:
 
 def test_known_inline_policy_json_is_checked_too() -> None:
     policy = json.dumps({"Statement": [{"Effect": "Allow", "Action": "*", "Resource": "*"}]})
-    doc = plan([], [{"address": "aws_iam_role_policy.x", "type": "aws_iam_role_policy",
-                     "values": {"policy": policy}}])
+    doc = plan(
+        [],
+        [
+            {
+                "address": "aws_iam_role_policy.x",
+                "type": "aws_iam_role_policy",
+                "values": {"policy": policy},
+            }
+        ],
+    )
     assert findings(doc)[0].address == "aws_iam_role_policy.x"
 
 
 def test_aws_managed_policy_attachments_fail() -> None:
-    doc = plan([], [{"address": "aws_iam_role_policy_attachment.a", "type": "aws_iam_role_policy_attachment",
-                     "values": {"policy_arn": "arn:aws:iam::aws:policy/AmazonS3FullAccess"}}])
+    doc = plan(
+        [],
+        [
+            {
+                "address": "aws_iam_role_policy_attachment.a",
+                "type": "aws_iam_role_policy_attachment",
+                "values": {"policy_arn": "arn:aws:iam::aws:policy/AmazonS3FullAccess"},
+            }
+        ],
+    )
     assert "AWS-managed" in findings(doc)[0].problem
 
 
 def test_child_modules_are_scanned() -> None:
-    doc = {"configuration": {"root_module": {"module_calls": {"m": {"module": {"resources": [
-        doc_resource("bad", [{"actions": ["s3:Get*"]}])]}}}}}}
+    doc = {
+        "configuration": {
+            "root_module": {
+                "module_calls": {
+                    "m": {
+                        "module": {"resources": [doc_resource("bad", [{"actions": ["s3:Get*"]}])]}
+                    }
+                }
+            }
+        }
+    }
     assert len(findings(doc)) == 1
 ```
 
@@ -2527,9 +2654,15 @@ def _value_findings(doc: dict[str, Any]) -> Iterator[Finding]:
     for module in _modules(values.get("root_module") or {}):
         for res in module.get("resources") or []:
             kind, attrs = res.get("type"), res.get("values") or {}
-            if kind in ATTACHMENTS and str(attrs.get("policy_arn", "")).startswith("arn:aws:iam::aws:policy/"):
+            if kind in ATTACHMENTS and str(attrs.get("policy_arn", "")).startswith(
+                "arn:aws:iam::aws:policy/"
+            ):
                 yield Finding(res["address"], f"attaches AWS-managed {attrs['policy_arn']}")
-            text = attrs.get(POLICY_ATTRIBUTES.get(kind, ""), None) if kind in POLICY_ATTRIBUTES else None
+            text = (
+                attrs.get(POLICY_ATTRIBUTES.get(kind, ""), None)
+                if kind in POLICY_ATTRIBUTES
+                else None
+            )
             if not text:
                 continue
             for statement in _as_list(json.loads(text).get("Statement")):
@@ -2551,7 +2684,9 @@ def main(argv: list[str] | None = None) -> int:
     problems = findings(json.loads(Path(args[0]).read_text(encoding="utf-8")))
     for f in problems:
         print(f"FAIL  {f.address}: {f.problem}")
-    print("IAM check: " + ("no wildcard actions" if not problems else f"{len(problems)} problem(s)"))
+    print(
+        "IAM check: " + ("no wildcard actions" if not problems else f"{len(problems)} problem(s)")
+    )
     return 1 if problems else 0
 
 
@@ -2590,15 +2725,19 @@ def test_an_empty_account_is_clean(aws) -> None:
 def test_leftovers_are_reported(aws) -> None:
     aws.client("ec2").create_volume(AvailabilityZone="ap-south-1a", Size=10)
     aws.client("dynamodb").create_table(
-        TableName="collectionsinference-state", BillingMode="PAY_PER_REQUEST",
+        TableName="collectionsinference-state",
+        BillingMode="PAY_PER_REQUEST",
         AttributeDefinitions=[{"AttributeName": "pk", "AttributeType": "S"}],
-        KeySchema=[{"AttributeName": "pk", "KeyType": "HASH"}])
+        KeySchema=[{"AttributeName": "pk", "KeyType": "HASH"}],
+    )
     results = run_checks(aws)
     assert len(results["EBS volumes"]) == 1
     assert results["DynamoDB tables"] == ["collectionsinference-state"]
 
 
-def test_main_writes_a_log_and_exits_nonzero_when_not_clean(aws, tmp_path: Path, monkeypatch) -> None:
+def test_main_writes_a_log_and_exits_nonzero_when_not_clean(
+    aws, tmp_path: Path, monkeypatch
+) -> None:
     monkeypatch.setattr("scripts.teardown_check.make_session", lambda profile, region: aws)
     aws.client("ec2").create_volume(AvailabilityZone="ap-south-1a", Size=10)
     assert main(["--out-dir", str(tmp_path)]) == 1
@@ -2684,7 +2823,9 @@ CHECKS: dict[str, Callable[[Any], list[str]]] = {
     ],
     "Auto Scaling groups": lambda s: [
         g["AutoScalingGroupName"]
-        for g in _pages(s.client("autoscaling"), "describe_auto_scaling_groups", "AutoScalingGroups")
+        for g in _pages(
+            s.client("autoscaling"), "describe_auto_scaling_groups", "AutoScalingGroups"
+        )
     ],
     "ECS clusters": lambda s: [
         c["clusterName"]
@@ -2708,7 +2849,9 @@ CHECKS: dict[str, Callable[[Any], list[str]]] = {
         d["DashboardName"]
         for d in _pages(s.client("cloudwatch"), "list_dashboards", "DashboardEntries")
     ],
-    "SNS topics": lambda s: [t["TopicArn"] for t in _pages(s.client("sns"), "list_topics", "Topics")],
+    "SNS topics": lambda s: [
+        t["TopicArn"] for t in _pages(s.client("sns"), "list_topics", "Topics")
+    ],
 }
 
 
@@ -2737,7 +2880,9 @@ def main(argv: list[str] | None = None) -> int:
         lines += [f"         - {item}" for item in found]
     lines += [
         "",
-        "CLEAN: no billable resources remain" if not leftovers else f"NOT CLEAN: {leftovers} resource(s) remain",
+        "CLEAN: no billable resources remain"
+        if not leftovers
+        else f"NOT CLEAN: {leftovers} resource(s) remain",
     ]
     text = "\n".join(lines)
     print(text)
