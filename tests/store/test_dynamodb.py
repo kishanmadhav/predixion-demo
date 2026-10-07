@@ -1,10 +1,13 @@
+import asyncio
 from collections.abc import AsyncIterator
 from typing import Any
 
 import boto3
 import pytest
+from botocore.exceptions import ClientError
 from moto import mock_aws
 
+from voice_agent.store import DEAD_LETTER_STATUSES
 from voice_agent.store.dynamodb import TABLE_SCHEMA, DynamoStore
 
 
@@ -68,12 +71,90 @@ async def test_finished_turns_leave_the_status_index(dynamo: tuple[Any, DynamoSt
     assert page["Items"] == []
 
 
-async def test_list_dead_letters_pages_past_one_query_page(
-    dynamo: tuple[Any, DynamoStore],
+async def test_recover_does_not_reset_a_claim_renewed_after_the_index_read(
+    dynamo: tuple[Any, DynamoStore], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _, store = dynamo
+    await store.begin_turn("c1", "t1", {"audio_b64": "AAAA"})
+    dlq_id = await _degrade(store, "t1")
+    assert await store.claim_dead_letter(dlq_id) is not None
+    stale_snapshot = await store._index("DLQ#replaying")
+    await store.release_dead_letter(dlq_id, error="x", attempts=[])
+    await asyncio.sleep(0.01)
+    assert await store.claim_dead_letter(dlq_id) is not None  # renewed: new claimed_at
+
+    original = store._index
+
+    async def stale_index(pk: str, **kwargs: Any) -> list[dict[str, Any]]:
+        return stale_snapshot if pk == "DLQ#replaying" else await original(pk, **kwargs)
+
+    monkeypatch.setattr(store, "_index", stale_index)
+    await store.recover(stale_after_s=-1)  # cutoff in the future: the snapshot looks stale
+    entry = await store.get_dead_letter(dlq_id)
+    assert entry is not None and entry.status == "replaying"
+
+
+async def test_recover_skips_a_turn_another_task_is_dead_lettering(
+    dynamo: tuple[Any, DynamoStore], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _, store = dynamo
+    for turn_id in ("t1", "t2"):
+        await store.begin_turn("c1", turn_id, {"audio_b64": "AAAA"})
+    original = store._call
+
+    async def conflicting(operation: str, **kwargs: Any) -> dict[str, Any]:
+        if operation == "transact_write_items" and any(
+            "TURN#t1" in str(item) for item in kwargs["TransactItems"]
+        ):
+            raise ClientError(
+                {
+                    "Error": {"Code": "TransactionCanceledException", "Message": "cancelled"},
+                    "CancellationReasons": [{"Code": "TransactionConflict"}, {"Code": "None"}],
+                },
+                "TransactWriteItems",
+            )
+        return await original(operation, **kwargs)
+
+    monkeypatch.setattr(store, "_call", conflicting)
+    ids = await store.recover(stale_after_s=-1)
+    assert len(ids) == 1
+    t1, t2 = await store.get_turn("c1", "t1"), await store.get_turn("c1", "t2")
+    assert t1 is not None and t1.status.value == "in_progress"
+    assert t2 is not None and t2.status.value == "interrupted"
+
+
+async def test_list_dead_letters_pages_past_one_query_page(
+    dynamo: tuple[Any, DynamoStore], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _, store = dynamo
+    store.page_size = 25
     for n in range(120):
         await store.begin_turn("c1", f"t{n}", {"audio_b64": "AAAA"})
         await _degrade(store, f"t{n}")
+    queries = 0
+    original = store._call
+
+    async def counting(operation: str, **kwargs: Any) -> dict[str, Any]:
+        nonlocal queries
+        queries += operation == "query"
+        return await original(operation, **kwargs)
+
+    monkeypatch.setattr(store, "_call", counting)
     assert len(await store.list_dead_letters(limit=1000)) == 120
+    listing_queries = queries
+    assert listing_queries > len(DEAD_LETTER_STATUSES)  # more than one page for "pending"
     assert (await store.dead_letter_counts())["pending"] == 120
+    assert queries - listing_queries > len(DEAD_LETTER_STATUSES)
+
+
+async def test_resolve_does_not_create_a_missing_turn(dynamo: tuple[Any, DynamoStore]) -> None:
+    client, store = dynamo
+    await store.begin_turn("c1", "t1", {"audio_b64": "AAAA"})
+    dlq_id = await _degrade(store, "t1")
+    client.delete_item(
+        TableName="test-state",
+        Key={"pk": {"S": "CALL#c1"}, "sk": {"S": "TURN#t1"}},
+    )
+    assert await store.claim_dead_letter(dlq_id) is not None
+    assert await store.resolve_dead_letter(dlq_id, {"transcript": "a"}, []) is False
+    assert await store.get_turn("c1", "t1") is None

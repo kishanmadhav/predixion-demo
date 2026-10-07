@@ -134,6 +134,18 @@ def _condition_failed(exc: ClientError) -> bool:
     return False
 
 
+def _transaction_lost(exc: ClientError) -> bool:
+    """A cancelled transaction another task won: its condition failed or it collided
+    with a concurrent transaction on the same item."""
+    if exc.response.get("Error", {}).get("Code", "") != "TransactionCanceledException":
+        return False
+    reasons = exc.response.get("CancellationReasons") or []
+    if any(r.get("Code") in ("ConditionalCheckFailed", "TransactionConflict") for r in reasons):
+        return True
+    text = str(exc)
+    return "ConditionalCheckFailed" in text or "TransactionConflict" in text
+
+
 def _turn(d: dict[str, Any]) -> Turn:
     return Turn(
         call_id=d["call_id"],
@@ -179,6 +191,7 @@ class DynamoStore:
     def __init__(self, client: Any, table: str) -> None:
         self._client = client
         self._table = table
+        self.page_size: int | None = None  # Limit per query page; tests use it to force paging
 
     @classmethod
     def open(cls, table: str, *, region: str, endpoint_url: str | None = None) -> DynamoStore:
@@ -214,6 +227,8 @@ class DynamoStore:
         start = None
         while True:
             page_args = dict(kwargs, TableName=self._table)
+            if self.page_size:
+                page_args["Limit"] = self.page_size
             if start:
                 page_args["ExclusiveStartKey"] = start
             page = await self._call("query", **page_args)
@@ -392,6 +407,7 @@ class DynamoStore:
         attempts: list[dict[str, Any]],
         partial: dict[str, Any],
         action: str | None,
+        skip_lost: bool = False,
     ) -> int:
         current = await self.get_turn(call_id, turn_id)
         if current is None or current.status is not TurnStatus.IN_PROGRESS:
@@ -454,7 +470,7 @@ class DynamoStore:
                 ],
             )
         except ClientError as exc:
-            if _condition_failed(exc):
+            if _condition_failed(exc) or (skip_lost and _transaction_lost(exc)):
                 raise LookupError(f"turn {call_id}/{turn_id} is not in progress") from exc
             raise
         return dlq_id
@@ -489,7 +505,7 @@ class DynamoStore:
         async def work() -> list[int]:
             for entry in await self._index("DLQ#replaying"):
                 if (entry.get("claimed_at") or "") < cutoff:
-                    await self._set_dead_letter_status(entry["id"], "replaying", "pending")
+                    await self._reset_stale_claim(entry["id"], entry.get("claimed_at"))
             ids = []
             for turn in await self._index(IN_PROGRESS_PK, before=cutoff):
                 try:
@@ -505,6 +521,7 @@ class DynamoStore:
                             attempts=[],
                             partial={},
                             action=None,
+                            skip_lost=True,
                         )
                     )
                 except LookupError:
@@ -515,8 +532,17 @@ class DynamoStore:
 
     # -- dead letters ---------------------------------------------------------
 
-    async def _set_dead_letter_status(self, dlq_id: int, expected: str, new: str) -> bool:
-        args = _update({"status": new, "gsi1pk": f"DLQ#{new}"}, condition={"status": expected})
+    async def _reset_stale_claim(self, dlq_id: int, claimed_at: str | None) -> bool:
+        """Release a replay claim, but only the exact claim that was seen as stale: a
+        claim another task renewed since the (eventually consistent) index read stays."""
+        args = _update(
+            {"status": "pending", "gsi1pk": "DLQ#pending"}, condition={"status": "replaying"}
+        )
+        if claimed_at is None:
+            args["ConditionExpression"] += " AND attribute_not_exists(claimed_at)"
+        else:
+            args["ConditionExpression"] += " AND claimed_at = :seen_claim"
+            args["ExpressionAttributeValues"][":seen_claim"] = {"S": claimed_at}
         try:
             await self._call("update_item", TableName=self._table, Key=_dlq_key(dlq_id), **args)
         except ClientError as exc:
@@ -555,6 +581,8 @@ class DynamoStore:
                     "ExpressionAttributeValues": {":pk": {"S": f"DLQ#{s}"}},
                     "Select": "COUNT",
                 }
+                if self.page_size:
+                    args["Limit"] = self.page_size
                 if start:
                     args["ExclusiveStartKey"] = start
                 page = await self._call("query", **args)
@@ -640,6 +668,7 @@ class DynamoStore:
                     "updated_at": stamp,
                 }
             )
+            complete["ConditionExpression"] = "attribute_exists(pk)"
             try:
                 await self._call(
                     "transact_write_items",

@@ -150,3 +150,10 @@ async def test_metrics_expose_retries_breaker_state_and_dead_letters(ctx: Ctx) -
     assert 'provider_retries_total{stage="llm"} 1.0' in text
     assert 'circuit_breaker_state{stage="llm"} 0.0' in text
     assert 'turns_total{status="completed"} 1.0' in text
+
+
+async def test_oversize_audio_is_rejected_with_422(ctx: Ctx) -> None:
+    client, *_ = ctx
+    too_big = "A" * 300_004  # valid base64, one block over the cap
+    r = await client.post("/v1/calls/c1/turns", json={"turn_id": "t1", "audio_b64": too_big})
+    assert r.status_code == 422

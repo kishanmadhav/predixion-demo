@@ -30,9 +30,18 @@ _REPLAY_HTTP_STATUS = {
 }
 
 
+# Stores keep the request audio, and a DynamoDB item is capped at 400 KB: 300k base64
+# characters is ~225 KB of audio (~7 s of 16 kHz/16-bit, ~14 s of 8 kHz telephony).
+MAX_AUDIO_B64_CHARS = 300_000
+
+
 class TurnRequest(BaseModel):
     turn_id: str = Field(default_factory=lambda: uuid.uuid4().hex, min_length=1, max_length=128)
-    audio_b64: str = Field(min_length=1, description="Caller audio for this turn, base64")
+    audio_b64: str = Field(
+        min_length=1,
+        max_length=MAX_AUDIO_B64_CHARS,
+        description="Caller audio for this turn, base64",
+    )
 
     @field_validator("audio_b64")
     @classmethod
