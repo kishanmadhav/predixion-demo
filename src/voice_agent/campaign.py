@@ -157,8 +157,12 @@ class Campaign:
                     task.add_done_callback(calls.discard)
             self._phase = "draining"
             if calls:
-                await asyncio.gather(*calls)
+                await asyncio.gather(*calls, return_exceptions=True)
         finally:
+            for pending in list(calls):
+                pending.cancel()
+            if calls:
+                await asyncio.gather(*calls, return_exceptions=True)
             progress.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await progress
@@ -183,16 +187,25 @@ class Campaign:
                     stats.http_failures += 1
                     stats.errors[type(exc).__name__] += 1
                     continue
-                stats.latencies_ms.append((time.perf_counter() - sent) * 1000)
+                elapsed_ms = (time.perf_counter() - sent) * 1000
                 _remember_stickiness(r, jar)
                 if r.status_code != 200:
                     stats.http_failures += 1
                     stats.errors[f"HTTP {r.status_code}"] += 1
                     continue
-                data = r.json()
-                stats.turns[data["status"]] += 1
-                if data.get("error_kind"):
-                    stats.errors[f"{data['failed_stage']}:{data['error_kind']}"] += 1
+                stats.latencies_ms.append(elapsed_ms)
+                try:
+                    data = r.json()
+                    status = data["status"]
+                    error_kind = data.get("error_kind")
+                    failed_stage = data.get("failed_stage")
+                except (ValueError, KeyError, AttributeError):
+                    stats.http_failures += 1
+                    stats.errors["bad response"] += 1
+                    continue
+                stats.turns[status] += 1
+                if error_kind:
+                    stats.errors[f"{failed_stage}:{error_kind}"] += 1
             with contextlib.suppress(httpx.HTTPError):
                 await self._client.post(f"/v1/calls/{call_id}/end", headers=_cookie(jar))
         finally:

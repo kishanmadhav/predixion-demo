@@ -21,7 +21,8 @@ def fake_service(seen: list[httpx.Request]) -> httpx.MockTransport:
         seen.append(request)
         if request.url.path.endswith("/end"):
             return httpx.Response(200, json={"was_active": True})
-        headers = {"set-cookie": "AWSALB=task-7; Path=/"}
+        call_id = request.url.path.split("/")[3]
+        headers = {"set-cookie": f"AWSALB={call_id}; Path=/"}
         return httpx.Response(
             200,
             headers=headers,
@@ -58,9 +59,11 @@ async def test_calls_stay_sticky_and_are_ended() -> None:
     by_call: dict[str, list[httpx.Request]] = {}
     for r in turns:
         by_call.setdefault(r.url.path.split("/")[3], []).append(r)
-    for requests in by_call.values():
+    end_by_call = {r.url.path.split("/")[3]: r for r in ends}
+    for call_id, requests in by_call.items():
         assert "cookie" not in requests[0].headers
-        assert requests[1].headers["cookie"] == "AWSALB=task-7"
+        assert requests[1].headers["cookie"] == f"AWSALB={call_id}"
+        assert end_by_call[call_id].headers["cookie"] == f"AWSALB={call_id}"
     assert json.loads(turns[0].content)["audio_b64"] == "UklGRg=="
 
 
@@ -81,3 +84,32 @@ async def test_http_failures_are_counted_not_raised() -> None:
         )
         stats = await campaign.run()
     assert stats["p"].http_failures == stats["p"].calls_started >= 1
+
+
+async def test_malformed_200_is_counted_and_call_still_ends() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if request.url.path.endswith("/end"):
+            return httpx.Response(200, json={})
+        return httpx.Response(200, content=b"<html>not json</html>")
+
+    async with make_client("http://svc", transport=httpx.MockTransport(handler)) as client:
+        campaign = Campaign(
+            client,
+            [Phase("p", 0.02, 300)],
+            audio=[b"RIFF"],
+            turns_per_call=2,
+            gap_s=0.0,
+            rng=random.Random(3),
+            progress_every_s=999,
+            out=lambda _: None,
+        )
+        stats = await campaign.run()
+    s = stats["p"]
+    ends = [r for r in seen if r.url.path.endswith("/end")]
+    assert s.calls_started >= 1
+    assert s.http_failures == 2 * s.calls_started
+    assert s.errors["bad response"] == s.http_failures
+    assert len(ends) == s.calls_started

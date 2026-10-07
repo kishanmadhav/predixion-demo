@@ -37,7 +37,7 @@ def instance_id(ec2: Any) -> str:
 
 
 def curl(method: str, path: str, body: dict[str, object] | None) -> str:
-    command = f"curl -sS -X {method} http://localhost:8080{path}"
+    command = f"curl -sS --fail-with-body -X {method} http://localhost:8080{path}"
     if body is not None:
         command += f" -H 'content-type: application/json' -d {shlex.quote(json.dumps(body))}"
     return command
@@ -67,7 +67,10 @@ def main() -> int:
     elif args.action == "outage":
         command = curl("POST", "/admin/chaos", {"stage": args.stage, "outage_s": args.seconds})
     else:
-        command = curl("POST", "/admin/chaos", {"stage": args.stage, "failure_rate": args.rate})
+        body: dict[str, object] = {"failure_rate": args.rate}
+        if args.stage:
+            body["stage"] = args.stage
+        command = curl("POST", "/admin/chaos", body)
 
     session = boto3.Session(profile_name=args.profile, region_name=args.region)
     target = instance_id(session.client("ec2"))
