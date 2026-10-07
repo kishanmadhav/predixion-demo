@@ -273,3 +273,23 @@ async def test_failed_write_ahead_still_plays_the_fallback(
     assert result.error_kind == "storage_unavailable"
     assert result.audio == runtime.pipeline.fallbacks[Action.RETRY_PROMPT].audio
     assert stt.calls == 0  # nothing is processed that could not be recorded
+
+
+async def test_a_degraded_turn_and_its_dead_letter_are_counted_once_everywhere(
+    tmp_path: Path,
+) -> None:
+    providers, _, llm, _ = fake_providers()
+    llm.failing = True
+    runtime = await open_runtime(fast_settings(tmp_path, emf_enabled=True), providers=providers)
+    try:
+        await runtime.pipeline.handle_turn("c1", "t1", b"hi")
+        reg = runtime.metrics.registry
+        assert reg.get_sample_value("turns_total", {"status": "degraded"}) == 1
+        assert reg.get_sample_value("dead_letters_total", {"reason": "stage_failed"}) == 1
+        assert runtime.emf is not None
+        docs = runtime.emf.flush(active_calls=0, in_flight=0, dlq_pending=None)
+        service = next(d for d in docs if "Stage" not in d)
+        assert service["Turns"] == 1 and service["TurnsDegraded"] == 1
+        assert service["DeadLetters"] == 1
+    finally:
+        await runtime.close()

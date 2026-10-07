@@ -40,4 +40,5 @@ class CallTracker:
             yield
         finally:
             self.in_flight -= 1
-            self.touch(call_id)
+            if call_id in self._last_seen:  # not if the call was ended mid-turn
+                self.touch(call_id)

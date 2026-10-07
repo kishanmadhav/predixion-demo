@@ -67,3 +67,34 @@ async def test_emf_is_off_by_default(tmp_path: Path) -> None:
         assert runtime.emf is None and runtime.metrics.emf is None
     finally:
         await runtime.close()
+
+
+async def test_run_emf_still_flushes_when_the_dlq_count_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    providers, *_ = fake_providers()
+    settings = fast_settings(tmp_path, emf_enabled=True, emf_interval_s=0.01)
+    runtime = await open_runtime(settings, providers=providers)
+
+    async def boom() -> dict[str, int]:
+        raise RuntimeError("dynamodb down")
+
+    monkeypatch.setattr(runtime.store, "dead_letter_counts", boom)
+    try:
+        runtime.calls.touch("c1")
+        docs: list[dict[str, Any]] = []
+        flushed = asyncio.Event()
+
+        def write(doc: dict[str, Any]) -> None:
+            docs.append(doc)
+            flushed.set()
+
+        task = asyncio.create_task(runtime.run_emf(write))
+        await asyncio.wait_for(flushed.wait(), timeout=5)
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+        first = next(d for d in docs if "Stage" not in d)
+        assert first["ActiveCalls"] == 1 and "DlqPending" not in first
+    finally:
+        await runtime.close()

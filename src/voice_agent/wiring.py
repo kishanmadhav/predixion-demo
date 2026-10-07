@@ -83,10 +83,15 @@ class Runtime:
         last_count = float("-inf")
         while True:
             await asyncio.sleep(self.settings.emf_interval_s)
-            try:
-                if time.monotonic() - last_count >= 60:
+            if time.monotonic() - last_count >= 60:
+                # Its own try: a failing store must not stop ActiveCalls from flushing.
+                # Advance last_count either way so a failure retries once a minute.
+                last_count = time.monotonic()
+                try:
                     pending = (await self.store.dead_letter_counts())["pending"]
-                    last_count = time.monotonic()
+                except Exception:
+                    log.exception("DLQ depth refresh failed; reporting the last value")
+            try:
                 for doc in self.emf.flush(
                     active_calls=self.calls.active(),
                     in_flight=self.calls.in_flight,

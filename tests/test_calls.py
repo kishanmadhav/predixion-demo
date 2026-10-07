@@ -38,3 +38,10 @@ def test_turn_counts_in_flight_and_refreshes_the_call() -> None:
     assert tracker.in_flight == 0
     clock.now = 140
     assert tracker.active() == 1  # touched again when the turn finished at t=100
+
+
+def test_a_call_ended_during_its_turn_is_not_revived() -> None:
+    tracker = CallTracker(idle_s=45, clock=Clock())
+    with tracker.turn("a"):
+        assert tracker.end("a") is True
+    assert tracker.active() == 0
