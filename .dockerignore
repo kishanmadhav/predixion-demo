@@ -1,0 +1,11 @@
+.git
+.venv
+infra
+docs
+assets
+teardown
+results
+tests
+data
+**/__pycache__
+*.db*

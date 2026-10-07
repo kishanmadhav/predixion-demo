@@ -1,0 +1,6 @@
+# Copy to terraform.tfvars (git-ignored) and edit.
+aws_profile   = "predixion"
+allowed_cidrs = ["203.0.113.7/32"] # your IP: (Invoke-RestMethod https://checkip.amazonaws.com).Trim() + "/32"
+model_tier    = "mock"             # "gpu" once the G-instance quota is approved
+# alert_email = "you@example.com"
+# campaign_prewarm = { start = "at(2026-10-08T10:00:00)", end = "at(2026-10-08T10:40:00)", min_tasks = 6 }
