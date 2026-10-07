@@ -14,6 +14,7 @@ import argparse
 import asyncio
 import json
 import logging
+import random
 import sys
 from typing import Any
 
@@ -187,7 +188,51 @@ def build_parser() -> argparse.ArgumentParser:
     demo.add_argument("--url", default="http://127.0.0.1:8080")
     demo.add_argument("--mock-url", default="http://127.0.0.1:9000")
     demo.add_argument("--outage-s", type=float, default=12.0)
+
+    camp = sub.add_parser("campaign", help="scripted campaign traffic with Poisson arrivals")
+    camp.add_argument("--url", required=True)
+    camp.add_argument("--profile", default="baseline:10:10,spike:15:50,cooldown:10:10")
+    camp.add_argument("--turns", type=int, default=3)
+    camp.add_argument("--gap", type=float, default=30.0)
+    camp.add_argument("--audio-dir", default="assets/utterances")
+    camp.add_argument("--seed", type=int)
+    camp.add_argument("--json-out")
     return parser
+
+
+def _write_json(path: str, payload: dict[str, Any]) -> None:
+    from pathlib import Path
+
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    Path(path).write_text(json.dumps(payload, indent=2))
+
+
+async def _campaign(args: argparse.Namespace) -> int:
+    from pathlib import Path
+
+    from voice_agent.campaign import (
+        Campaign,
+        format_campaign,
+        load_audio,
+        make_client,
+        parse_profile,
+    )
+
+    phases = parse_profile(args.profile)
+    async with make_client(args.url) as client:
+        campaign = Campaign(
+            client,
+            phases,
+            audio=load_audio(Path(args.audio_dir)),
+            turns_per_call=args.turns,
+            gap_s=args.gap,
+            rng=random.Random(args.seed),
+        )
+        stats = await campaign.run()
+    print(format_campaign(stats))
+    if args.json_out:
+        _write_json(args.json_out, {name: s.as_dict() for name, s in stats.items()})
+    return 0 if all(s.http_failures == 0 for s in stats.values()) else 1
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -224,6 +269,8 @@ def main(argv: list[str] | None = None) -> int:
 
         asyncio.run(chaos_demo(args.url, args.mock_url, outage_s=args.outage_s))
         return 0
+    if args.command == "campaign":
+        return asyncio.run(_campaign(args))
     return 2
 
 
