@@ -21,3 +21,7 @@ output "models_endpoint" {
 output "gpu_asg" {
   value = var.model_tier == "gpu" ? aws_autoscaling_group.gpu[0].name : null
 }
+
+output "dashboard_url" {
+  value = "https://${var.region}.console.aws.amazon.com/cloudwatch/home?region=${var.region}#dashboards/dashboard/${aws_cloudwatch_dashboard.main.dashboard_name}"
+}
