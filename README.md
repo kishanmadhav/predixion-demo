@@ -150,7 +150,7 @@ Duplicate turn ids (a telephony retry) never re-run the providers. They return `
 - **Completed turns:** the reply text. Audio isn't stored, so it isn't returned.
 - **Degraded or in-progress turns:** the fallback prompt, both text and audio, for the stored `action`.
 
-`/health` never depends on provider health. That way a provider outage can't make the load balancer recycle orchestrator tasks that are degrading correctly. It still reports breaker states and DLQ counts. `/metrics` exposes Prometheus counters for attempts, retries, breaker state and transitions, turns, dead letters and replays.
+`/health` never depends on provider or store health. That way a provider outage or a DynamoDB brownout can't make the load balancer recycle orchestrator tasks that are degrading correctly. It reports liveness and this task's breaker states; the dead-letter counts are on `GET /v1/dlq` (`curl -s "localhost:8080/v1/dlq?limit=1"` returns them under `counts`). `/metrics` exposes Prometheus counters for attempts, retries, breaker state and transitions, turns, dead letters and replays.
 
 ## Dead-letter queue
 

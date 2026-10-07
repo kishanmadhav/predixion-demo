@@ -139,7 +139,33 @@ async def test_health_stays_up_while_a_provider_is_down(ctx: Ctx) -> None:
     body = r.json()
     assert body["breakers"]["tts"]["state"] == "open"
     assert body["breakers"]["stt"]["state"] == "closed"
-    assert body["dead_letters"]["pending"] == 3
+    assert "dead_letters" not in body  # counts live on GET /v1/dlq, off the health path
+    counts = (await client.get("/v1/dlq", params={"limit": 1})).json()["counts"]
+    assert counts["pending"] == 3
+
+
+class _UnreachableStore:
+    """Every store call fails, as during a DynamoDB brownout."""
+
+    def __getattr__(self, name: str) -> object:
+        raise AssertionError(f"/health must not touch the store (called {name})")
+
+
+async def test_health_never_touches_the_store(tmp_path: Path) -> None:
+    providers, *_ = fake_providers()
+    runtime = await open_runtime(fast_settings(tmp_path), providers=providers)
+    real_store = runtime.store
+    runtime.store = _UnreachableStore()  # type: ignore[assignment]
+    try:
+        transport = httpx.ASGITransport(app=create_app(runtime=runtime))
+        async with httpx.AsyncClient(transport=transport, base_url="http://va") as client:
+            r = await client.get("/health")
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+        assert set(r.json()["breakers"]) == {"stt", "llm", "tts"}
+    finally:
+        runtime.store = real_store
+        await runtime.close()
 
 
 async def test_metrics_expose_retries_breaker_state_and_dead_letters(ctx: Ctx) -> None:

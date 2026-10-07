@@ -202,13 +202,14 @@ def create_app(settings: Settings | None = None, *, runtime: Runtime | None = No
 
     @app.get("/health")
     async def health(request: Request) -> dict[str, Any]:
-        # Deliberately independent of provider health: an STT/LLM/TTS outage must not
-        # make the load balancer recycle orchestrator tasks that are degrading correctly.
+        # Liveness only. Deliberately independent of provider and store health: an
+        # STT/LLM/TTS outage or a DynamoDB brownout must not make the load balancer
+        # recycle orchestrator tasks that are degrading correctly. Dead-letter counts
+        # are on GET /v1/dlq.
         runtime_ = rt(request)
         return {
             "status": "ok",
             "breakers": {name: s.breaker.snapshot() for name, s in runtime_.stages.items()},
-            "dead_letters": await runtime_.store.dead_letter_counts(),
         }
 
     @app.get("/metrics")

@@ -83,8 +83,20 @@ def _pct(values: list[float], q: float) -> float:
     return ordered[min(len(ordered) - 1, int(q * len(ordered)))]
 
 
+async def dlq_counts(client: httpx.AsyncClient) -> dict[str, int]:
+    """Dead-letter counts by status (GET /v1/dlq; /health stays off the store)."""
+    response = await client.get("/v1/dlq", params={"limit": 1})
+    response.raise_for_status()
+    counts: dict[str, int] = response.json()["counts"]
+    return counts
+
+
 def format_load_report(
-    report: LoadReport, health: dict[str, Any], mock: dict[str, Any] | None
+    report: LoadReport,
+    health: dict[str, Any],
+    mock: dict[str, Any] | None,
+    *,
+    dead_letters: dict[str, int],
 ) -> str:
     lines = [
         f"turns sent:          {report.total}",
@@ -107,9 +119,7 @@ def format_load_report(
         "breakers:            "
         + ", ".join(f"{name}={b['state']}" for name, b in health["breakers"].items())
     )
-    lines.append(
-        "dead letters:        " + ", ".join(f"{k}={v}" for k, v in health["dead_letters"].items())
-    )
+    lines.append("dead letters:        " + ", ".join(f"{k}={v}" for k, v in dead_letters.items()))
     if mock is not None:
         lines.append("provider received (requests / ok / failed):")
         for stage in STAGES:
@@ -139,8 +149,9 @@ async def loadtest(
             client, calls=calls, turns_per_call=turns_per_call, concurrency=concurrency
         )
         health = (await client.get("/health")).json()
+        dead_letters = await dlq_counts(client)
         stats = (await mock.get("/admin/stats")).json() if mock_url else None
-    return format_load_report(report, health, stats)
+    return format_load_report(report, health, stats, dead_letters=dead_letters)
 
 
 async def chaos_demo(url: str, mock_url: str, *, outage_s: float = 12.0) -> None:
@@ -154,7 +165,7 @@ async def chaos_demo(url: str, mock_url: str, *, outage_s: float = 12.0) -> None
             stats = (await mock.get("/admin/stats")).json()["stages"]
             breakers = " ".join(f"{n}={b['state']:<9}" for n, b in health["breakers"].items())
             traffic = " ".join(f"{s}={stats[s]['requests']:<4}" for s in STAGES)
-            pending = health["dead_letters"]["pending"]
+            pending = (await dlq_counts(client))["pending"]
             print(
                 f"  [{label:<22}] breakers: {breakers} provider requests: {traffic} "
                 f"dlq pending={pending}"
