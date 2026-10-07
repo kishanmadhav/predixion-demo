@@ -25,6 +25,7 @@ dev = [
     "ruff>=0.6",
     "mypy>=1.11",
     "moto[dynamodb]>=5.0",
+    "python-multipart>=0.0.9",  # the proxy test upstream parses multipart forms
 ]
 
 [build-system]

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from voice_agent.cli import main
+from voice_agent.cli import build_parser, main
 from voice_agent.store import SqliteStore
 
 
@@ -87,3 +87,9 @@ def test_cli_replay_never_reclaims_the_services_in_flight_turns(
         await store.close()
 
     asyncio.run(check())
+
+
+def test_chaos_proxy_command_defaults() -> None:
+    args = build_parser().parse_args(["chaos-proxy"])
+    assert args.host == "0.0.0.0"
+    assert args.port == 8080

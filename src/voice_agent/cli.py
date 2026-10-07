@@ -2,6 +2,7 @@
 
 serve        run the voice-agent HTTP service
 mock         run the mock STT/LLM/TTS provider
+chaos-proxy  run the failure-injecting proxy in front of real model servers
 dlq          inspect and replay the dead-letter queue (reads the SQLite file directly)
 loadtest     drive synthetic calls through a running service and report
 chaos-demo   baseline -> outage -> recovery -> replay walkthrough
@@ -47,7 +48,8 @@ def _serve(args: argparse.Namespace) -> None:
 def _mock(args: argparse.Namespace) -> None:
     import uvicorn
 
-    from mock_provider.app import MockConfig, create_app
+    from mock_provider.app import create_app
+    from mock_provider.chaos import MockConfig
 
     config = MockConfig.from_env()
     if args.failure_rate is not None:
@@ -56,6 +58,20 @@ def _mock(args: argparse.Namespace) -> None:
         config.seed = args.seed
     _configure_logging("INFO")
     uvicorn.run(create_app(config), host=args.host, port=args.port, log_level="warning")
+
+
+def _chaos_proxy(args: argparse.Namespace) -> None:
+    import uvicorn
+
+    from mock_provider.proxy import ProxyConfig, create_proxy_app
+
+    _configure_logging("INFO")
+    uvicorn.run(
+        create_proxy_app(ProxyConfig.from_env()),
+        host=args.host,
+        port=args.port,
+        log_level="warning",
+    )
 
 
 def _print_json(value: Any) -> None:
@@ -137,6 +153,10 @@ def build_parser() -> argparse.ArgumentParser:
     mock.add_argument("--failure-rate", type=float)
     mock.add_argument("--seed", type=int)
 
+    proxy = sub.add_parser("chaos-proxy", help="failure-injecting proxy for real model servers")
+    proxy.add_argument("--host", default="0.0.0.0")
+    proxy.add_argument("--port", type=int, default=8080)
+
     dlq = sub.add_parser("dlq", help="inspect and replay dead letters")
     dlq_sub = dlq.add_subparsers(dest="dlq_command", required=True)
     ls = dlq_sub.add_parser("list")
@@ -177,6 +197,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "mock":
         _mock(args)
+        return 0
+    if args.command == "chaos-proxy":
+        _chaos_proxy(args)
         return 0
     if args.command == "dlq":
         return asyncio.run(_dlq(args))
