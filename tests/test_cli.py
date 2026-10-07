@@ -93,3 +93,20 @@ def test_chaos_proxy_command_defaults() -> None:
     args = build_parser().parse_args(["chaos-proxy"])
     assert args.host == "0.0.0.0"
     assert args.port == 8080
+
+
+def test_serve_keepalive_exceeds_alb_idle_timeout(
+    db: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import argparse
+
+    import uvicorn
+
+    from voice_agent.cli import _serve
+
+    captured: dict[str, object] = {}
+    monkeypatch.setattr("voice_agent.api.create_app", lambda settings: object())
+    monkeypatch.setattr(uvicorn, "run", lambda app, **kw: captured.update(kw))
+    _serve(argparse.Namespace(host=None, port=None))
+    keep_alive = captured["timeout_keep_alive"]
+    assert isinstance(keep_alive, int) and keep_alive > 60

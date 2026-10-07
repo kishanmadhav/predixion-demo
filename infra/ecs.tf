@@ -19,8 +19,16 @@ resource "aws_vpc_security_group_egress_rule" "tasks_out" {
   ip_protocol       = "-1"
 }
 
+# Container Insights creates this group itself, outside Terraform, and it would survive
+# destroy. Declaring it here makes Terraform own and delete it.
+resource "aws_cloudwatch_log_group" "container_insights" {
+  name              = "/aws/ecs/containerinsights/${local.name}/performance"
+  retention_in_days = var.log_retention_days
+}
+
 resource "aws_ecs_cluster" "main" {
-  name = local.name
+  name       = local.name
+  depends_on = [aws_cloudwatch_log_group.container_insights]
   setting {
     name  = "containerInsights"
     value = "enabled"
@@ -98,6 +106,7 @@ resource "aws_ecs_service" "app" {
   deployment_maximum_percent         = 200
   availability_zone_rebalancing      = "ENABLED"
   propagate_tags                     = "SERVICE"
+  wait_for_steady_state              = true
 
   network_configuration {
     subnets          = aws_subnet.private[*].id

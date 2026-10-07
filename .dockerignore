@@ -9,3 +9,9 @@ tests
 data
 **/__pycache__
 *.db*
+.env
+.superpowers
+.claude
+.pytest_cache
+.ruff_cache
+.mypy_cache

@@ -43,6 +43,7 @@ def _serve(args: argparse.Namespace) -> None:
         host=args.host or settings.host,
         port=args.port or settings.port,
         log_level=settings.log_level.lower(),
+        timeout_keep_alive=75,  # must exceed the ALB idle timeout (60 s)
     )
 
 

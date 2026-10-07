@@ -31,15 +31,39 @@ resource "aws_cloudwatch_log_resource_policy" "events" {
 
 resource "aws_cloudwatch_event_rule" "ecs" {
   name = "${local.name}-ecs-events"
+  # Deployment events carry no detail.clusterArn, so they match on the service ARN in resources.
   event_pattern = jsonencode({
-    source      = ["aws.ecs"]
-    detail-type = ["ECS Task State Change", "ECS Service Action", "ECS Deployment State Change"]
-    detail      = { clusterArn = [aws_ecs_cluster.main.arn] }
+    source = ["aws.ecs"]
+    "$or" = [
+      {
+        detail-type = ["ECS Task State Change", "ECS Service Action"]
+        detail      = { clusterArn = [aws_ecs_cluster.main.arn] }
+      },
+      {
+        detail-type = ["ECS Deployment State Change"]
+        resources   = [{ prefix = aws_ecs_service.app.id }]
+      },
+    ]
   })
 }
 
 resource "aws_cloudwatch_event_target" "ecs_to_logs" {
   rule = aws_cloudwatch_event_rule.ecs.name
+  arn  = aws_cloudwatch_log_group.events.arn
+}
+
+# The target-tracking alarms Application Auto Scaling manages: the real scale-out/in decisions.
+resource "aws_cloudwatch_event_rule" "scaling_alarms" {
+  name = "${local.name}-scaling-alarms"
+  event_pattern = jsonencode({
+    source      = ["aws.cloudwatch"]
+    detail-type = ["CloudWatch Alarm State Change"]
+    detail      = { alarmName = [{ prefix = "TargetTracking-service/${aws_ecs_cluster.main.name}/${local.service_name}" }] }
+  })
+}
+
+resource "aws_cloudwatch_event_target" "scaling_alarms_to_logs" {
+  rule = aws_cloudwatch_event_rule.scaling_alarms.name
   arn  = aws_cloudwatch_log_group.events.arn
 }
 
@@ -236,7 +260,7 @@ locals {
         title  = "Autoscaling and task events"
         region = var.region
         view   = "table"
-        query  = "SOURCE '${aws_cloudwatch_log_group.events.name}' | fields @timestamp, `detail-type`, detail.group, detail.lastStatus, detail.eventName, detail.desiredCount | sort @timestamp desc | limit 50"
+        query  = "SOURCE '${aws_cloudwatch_log_group.events.name}' | fields @timestamp, `detail-type`, detail.group, detail.lastStatus, detail.eventName, detail.alarmName, detail.state.value | sort @timestamp desc | limit 50"
       }
     },
   ]
