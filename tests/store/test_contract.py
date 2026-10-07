@@ -232,3 +232,27 @@ async def test_recover_without_lease_dead_letters_every_in_progress_turn(store: 
     assert turn is not None and turn.status is TurnStatus.INTERRUPTED
     entry = await store.get_dead_letter(ids[0])
     assert entry is not None and entry.reason == "interrupted" and entry.status == "pending"
+
+
+async def test_list_dead_letters_summaries_match_the_full_entries(store: Store) -> None:
+    # Listings are summary records (DynamoDB serves them from an index that leaves out the
+    # audio); every field of summary() must still agree with the full entry.
+    a = await degrade(store, "c1", "t1")
+    b = await degrade(store, "c1", "t2")
+    c = await degrade(store, "c2", "t1")
+    await store.claim_dead_letter(a)
+    await store.release_dead_letter(a, error="[llm] circuit_open", attempts=ATTEMPTS)
+    await store.claim_dead_letter(b)
+    await store.claim_dead_letter(c)
+    await store.resolve_dead_letter(c, {"transcript": "x", "reply_text": "y"}, ATTEMPTS)
+    listed = await store.list_dead_letters()
+    assert [d.id for d in listed] == [a, b, c]
+    for d in listed:
+        full = await store.get_dead_letter(d.id)
+        assert full is not None and d.summary() == full.summary()
+    assert [d.id for d in await store.list_dead_letters(status="replaying")] == [b]
+    assert [d.id for d in await store.list_dead_letters(call_id="c2")] == [c]
+    assert await store.dead_letter_counts() == {"pending": 1, "replaying": 1, "resolved": 1}
+    claimed = await store.claim_dead_letter(a)
+    assert claimed is not None and claimed.payload == {"audio_b64": "AAAA"}
+    assert claimed.attempts == ATTEMPTS and claimed.partial == {"transcript": "I can pay next week"}

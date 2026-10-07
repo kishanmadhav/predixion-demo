@@ -10,7 +10,10 @@ One table holds turns, dead letters and the dead-letter id counter:
 * Every transition is a conditional update on the expected status, mirroring the SQL
   `WHERE status = <expected>` guards.
 * A sparse index (`by_status`) lists dead letters by status and finds in-progress turns
-  for the lease sweeper; items leave it when they no longer need finding.
+  for the lease sweeper; items leave it when they no longer need finding. It projects
+  only small bookkeeping attributes, never the request audio or results, so the cost
+  of counting and listing dead letters does not grow with the audio they hold.
+  Listings built from it are therefore summary records (see `list_dead_letters`).
 
 boto3 is synchronous, so each call runs in a worker thread; multi-step writes are
 shielded from cancellation like the SQLite store's.
@@ -48,6 +51,22 @@ T = TypeVar("T")
 STATUS_INDEX = "by_status"
 IN_PROGRESS_PK = "TURN#in_progress"
 
+# Non-key attributes the status index carries. Keep in sync with infra/dynamodb.tf (a test
+# checks). Never add payload, request, attempts, partial or result: they hold the audio.
+INDEX_ATTRIBUTES = (
+    "id",
+    "call_id",
+    "turn_id",
+    "status",
+    "reason",
+    "failed_stage",
+    "error_kind",
+    "replay_count",
+    "created_at",
+    "claimed_at",
+    "updated_at",
+)
+
 TABLE_SCHEMA: dict[str, Any] = {
     "AttributeDefinitions": [
         {"AttributeName": name, "AttributeType": "S"} for name in ("pk", "sk", "gsi1pk", "gsi1sk")
@@ -63,11 +82,30 @@ TABLE_SCHEMA: dict[str, Any] = {
                 {"AttributeName": "gsi1pk", "KeyType": "HASH"},
                 {"AttributeName": "gsi1sk", "KeyType": "RANGE"},
             ],
-            "Projection": {"ProjectionType": "ALL"},
+            "Projection": {
+                "ProjectionType": "INCLUDE",
+                "NonKeyAttributes": list(INDEX_ATTRIBUTES),
+            },
         }
     ],
     "BillingMode": "PAY_PER_REQUEST",
 }
+
+# What `_call_turns` reads: a Turn without its request audio (aliased: several of these
+# are DynamoDB reserved words).
+_CALL_TURN_ATTRIBUTES = (
+    "call_id",
+    "turn_id",
+    "arrival",
+    "status",
+    "action",
+    "result",
+    "failed_stage",
+    "error_kind",
+    "attempts",
+    "created_at",
+    "updated_at",
+)
 
 _serializer = TypeSerializer()
 _deserializer = TypeDeserializer()
@@ -152,7 +190,7 @@ def _turn(d: dict[str, Any]) -> Turn:
         turn_id=d["turn_id"],
         status=TurnStatus(d["status"]),
         action=d.get("action"),
-        request=loads(d["request"]),
+        request=loads(d.get("request")) or {},  # left out of call listings
         result=loads(d.get("result")),
         failed_stage=d.get("failed_stage"),
         error_kind=d.get("error_kind"),
@@ -182,6 +220,32 @@ def _dead_letter(d: dict[str, Any]) -> DeadLetter:
         claimed_at=d.get("claimed_at"),
         last_replay_at=d.get("last_replay_at"),
         resolved_at=d.get("resolved_at"),
+    )
+
+
+def _listed_dead_letter(d: dict[str, Any]) -> DeadLetter:
+    """A dead letter as the status index holds it: every `summary()` field is real; the
+    payload, attempts, partial result and replay history are not projected and come back
+    empty. Use `get_dead_letter` (or `claim_dead_letter`) for the full entry."""
+    return DeadLetter(
+        id=d["id"],
+        call_id=d["call_id"],
+        turn_id=d["turn_id"],
+        reason=d["reason"],
+        failed_stage=d.get("failed_stage"),
+        error_kind=d.get("error_kind"),
+        error_detail=None,
+        payload={},
+        attempts=[],
+        partial={},
+        status=d["status"],
+        replay_count=d.get("replay_count", 0),
+        last_replay_error=None,
+        replay_attempts=None,
+        created_at=d["created_at"],
+        claimed_at=d.get("claimed_at"),
+        last_replay_at=None,
+        resolved_at=None,
     )
 
 
@@ -252,9 +316,13 @@ class DynamoStore:
         )
 
     async def _call_turns(self, call_id: str) -> list[dict[str, Any]]:
+        """Every turn of a call, in arrival order, without the request audio: history,
+        degraded counts and the call listing never need it."""
         items = await self._query(
             KeyConditionExpression="pk = :pk AND begins_with(sk, :prefix)",
             ExpressionAttributeValues={":pk": {"S": f"CALL#{call_id}"}, ":prefix": {"S": "TURN#"}},
+            ProjectionExpression=", ".join(f"#{a}" for a in _CALL_TURN_ATTRIBUTES),
+            ExpressionAttributeNames={f"#{a}": a for a in _CALL_TURN_ATTRIBUTES},
             ConsistentRead=True,
         )
         return sorted(items, key=lambda d: str(d["arrival"]))
@@ -317,6 +385,7 @@ class DynamoStore:
         return _turn(_decode(item)) if item else None
 
     async def list_turns(self, call_id: str) -> list[Turn]:
+        """Turns without their request audio (`request` is `{}`); use `get_turn` for it."""
         return [_turn(d) for d in await self._call_turns(call_id)]
 
     async def history_before(
@@ -561,13 +630,15 @@ class DynamoStore:
     async def list_dead_letters(
         self, *, status: str | None = None, call_id: str | None = None, limit: int = 100
     ) -> list[DeadLetter]:
+        """Summary records straight from the status index (see `_listed_dead_letter`):
+        listing 1,000 entries must not read 1,000 payloads of audio."""
         statuses = [status] if status is not None else list(DEAD_LETTER_STATUSES)
         entries: list[dict[str, Any]] = []
         for s in statuses:
             found = await self._index(f"DLQ#{s}", limit=None if call_id else limit)
             entries.extend(e for e in found if call_id is None or e["call_id"] == call_id)
         entries.sort(key=lambda e: int(e["id"]))
-        return [_dead_letter(e) for e in entries[:limit]]
+        return [_listed_dead_letter(e) for e in entries[:limit]]
 
     async def dead_letter_counts(self) -> dict[str, int]:
         counts = dict.fromkeys(DEAD_LETTER_STATUSES, 0)

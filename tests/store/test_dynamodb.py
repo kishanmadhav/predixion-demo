@@ -1,5 +1,7 @@
 import asyncio
+import re
 from collections.abc import AsyncIterator
+from pathlib import Path
 from typing import Any
 
 import boto3
@@ -158,3 +160,91 @@ async def test_resolve_does_not_create_a_missing_turn(dynamo: tuple[Any, DynamoS
     assert await store.claim_dead_letter(dlq_id) is not None
     assert await store.resolve_dead_letter(dlq_id, {"transcript": "a"}, []) is False
     assert await store.get_turn("c1", "t1") is None
+
+
+_LARGE = ("payload", "request", "attempts", "partial", "result")
+
+
+def test_status_index_projects_no_audio_or_large_attributes() -> None:
+    (index,) = TABLE_SCHEMA["GlobalSecondaryIndexes"]
+    projection = index["Projection"]
+    assert projection["ProjectionType"] == "INCLUDE"
+    assert not set(_LARGE) & set(projection["NonKeyAttributes"])
+    assert {"id", "call_id", "turn_id", "status", "claimed_at"} <= set(
+        projection["NonKeyAttributes"]
+    )
+
+
+def test_terraform_index_projection_matches_the_table_schema() -> None:
+    tf = (Path(__file__).parents[2] / "infra" / "dynamodb.tf").read_text()
+    assert re.search(r'projection_type\s*=\s*"INCLUDE"', tf)
+    match = re.search(r"non_key_attributes\s*=\s*\[([^\]]*)\]", tf)
+    assert match is not None
+    tf_attributes = re.findall(r'"([^"]+)"', match.group(1))
+    (index,) = TABLE_SCHEMA["GlobalSecondaryIndexes"]
+    assert sorted(tf_attributes) == sorted(index["Projection"]["NonKeyAttributes"])
+
+
+async def test_index_reads_never_carry_the_audio(dynamo: tuple[Any, DynamoStore]) -> None:
+    client, store = dynamo
+    await store.begin_turn("c1", "live", {"audio_b64": "AAAA"})
+    await store.begin_turn("c1", "t1", {"audio_b64": "AAAA"})
+    await _degrade(store, "t1")
+    for pk in ("TURN#in_progress", "DLQ#pending"):
+        page = client.query(
+            TableName="test-state",
+            IndexName="by_status",
+            KeyConditionExpression="gsi1pk = :pk",
+            ExpressionAttributeValues={":pk": {"S": pk}},
+        )
+        assert len(page["Items"]) == 1
+        assert not set(_LARGE) & set(page["Items"][0])
+
+
+async def test_listing_dead_letters_reads_only_the_index(
+    dynamo: tuple[Any, DynamoStore], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _, store = dynamo
+    for n in range(3):
+        await store.begin_turn("c1", f"t{n}", {"audio_b64": "AAAA"})
+        await _degrade(store, f"t{n}")
+    operations: list[str] = []
+    original = store._call
+
+    async def recording(operation: str, **kwargs: Any) -> dict[str, Any]:
+        operations.append(operation)
+        return await original(operation, **kwargs)
+
+    monkeypatch.setattr(store, "_call", recording)
+    listed = await store.list_dead_letters()
+    assert len(listed) == 3 and set(operations) == {"query"}
+    assert all(d.payload == {} and d.attempts == [] and d.partial == {} for d in listed)
+
+
+async def test_turn_lookups_by_call_never_read_the_audio(
+    dynamo: tuple[Any, DynamoStore], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _, store = dynamo
+    await store.begin_turn("c1", "t1", {"audio_b64": "AAAA"})
+    await store.complete_turn("c1", "t1", {"transcript": "a", "reply_text": "A"}, [])
+    await store.begin_turn("c1", "t2", {"audio_b64": "AAAA"})
+    await _degrade(store, "t2")
+    await store.begin_turn("c1", "t3", {"audio_b64": "AAAA"})
+    returned: list[dict[str, Any]] = []
+    original = store._call
+
+    async def recording(operation: str, **kwargs: Any) -> dict[str, Any]:
+        page = await original(operation, **kwargs)
+        if operation == "query":
+            returned.extend(page.get("Items", []))
+        return page
+
+    monkeypatch.setattr(store, "_call", recording)
+    assert await store.history_before("c1", "t3", limit=5) == [("a", "A")]
+    assert await store.consecutive_degraded("c1") == 1
+    turns = await store.list_turns("c1")
+    assert [t.turn_id for t in turns] == ["t1", "t2", "t3"]
+    assert turns[0].result == {"transcript": "a", "reply_text": "A"}
+    assert turns[1].failed_stage == "llm" and turns[1].status.value == "degraded"
+    assert all(t.request == {} for t in turns)
+    assert returned and not any("request" in item for item in returned)
