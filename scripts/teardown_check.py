@@ -33,10 +33,9 @@ def _instances(s: Any) -> list[str]:
     ]
 
 
-def _snapshots(s: Any) -> list[str]:
+def _snapshots(s: Any, account: str) -> list[str]:
     # moto seeds AMI snapshots owned by other accounts yet matches them for "self",
     # so also require the owner to be this account (a no-op on real AWS).
-    account = s.client("sts").get_caller_identity()["Account"]
     return [
         sn["SnapshotId"]
         for sn in _pages(s.client("ec2"), "describe_snapshots", "Snapshots", OwnerIds=["self"])
@@ -44,7 +43,38 @@ def _snapshots(s: Any) -> list[str]:
     ]
 
 
-CHECKS: dict[str, Callable[[Any], list[str]]] = {
+def _images(s: Any, account: str) -> list[str]:
+    # describe_images has no paginator; one call returns every owned image.
+    return [
+        f"{i['ImageId']} {i.get('Name', '')}"
+        for i in s.client("ec2").describe_images(Owners=["self"])["Images"]
+        if i.get("OwnerId", account) == account
+    ]
+
+
+def _alarms(s: Any) -> list[str]:
+    cw = s.client("cloudwatch")
+    kinds = ["MetricAlarm", "CompositeAlarm"]
+    return [
+        a["AlarmName"]
+        for page in cw.get_paginator("describe_alarms").paginate(AlarmTypes=kinds)
+        for key in ("MetricAlarms", "CompositeAlarms")
+        for a in page.get(key, [])
+    ]
+
+
+def _ecs_clusters(s: Any) -> list[str]:
+    ecs = s.client("ecs")
+    arns = _pages(ecs, "list_clusters", "clusterArns")
+    found: list[str] = []
+    for i in range(0, len(arns), 100):
+        for c in ecs.describe_clusters(clusters=arns[i : i + 100])["clusters"]:
+            if c["status"] == "ACTIVE":
+                found.append(c["clusterName"])
+    return found
+
+
+CHECKS: dict[str, Callable[..., list[str]]] = {
     "EC2 instances": _instances,
     "NAT gateways": lambda s: [
         f"{n['NatGatewayId']} {n['State']}"
@@ -55,6 +85,10 @@ CHECKS: dict[str, Callable[[Any], list[str]]] = {
         lb["LoadBalancerName"]
         for lb in _pages(s.client("elbv2"), "describe_load_balancers", "LoadBalancers")
     ],
+    "Classic load balancers": lambda s: [
+        lb["LoadBalancerName"]
+        for lb in _pages(s.client("elb"), "describe_load_balancers", "LoadBalancerDescriptions")
+    ],
     "Elastic IPs": lambda s: [
         a.get("PublicIp", "?") for a in s.client("ec2").describe_addresses()["Addresses"]
     ],
@@ -63,6 +97,7 @@ CHECKS: dict[str, Callable[[Any], list[str]]] = {
         for v in _pages(s.client("ec2"), "describe_volumes", "Volumes")
     ],
     "EBS snapshots": _snapshots,
+    "AMIs": _images,
     "Network interfaces": lambda s: [
         f"{n['NetworkInterfaceId']} {n.get('Description', '')}"
         for n in _pages(s.client("ec2"), "describe_network_interfaces", "NetworkInterfaces")
@@ -83,13 +118,7 @@ CHECKS: dict[str, Callable[[Any], list[str]]] = {
             s.client("autoscaling"), "describe_auto_scaling_groups", "AutoScalingGroups"
         )
     ],
-    "ECS clusters": lambda s: [
-        c["clusterName"]
-        for arns in [s.client("ecs").list_clusters()["clusterArns"]]
-        if arns
-        for c in s.client("ecs").describe_clusters(clusters=arns)["clusters"]
-        if c["status"] == "ACTIVE"
-    ],
+    "ECS clusters": _ecs_clusters,
     "DynamoDB tables": lambda s: _pages(s.client("dynamodb"), "list_tables", "TableNames"),
     "ECR repositories": lambda s: [
         r["repositoryName"]
@@ -98,9 +127,7 @@ CHECKS: dict[str, Callable[[Any], list[str]]] = {
     "CloudWatch log groups": lambda s: [
         g["logGroupName"] for g in _pages(s.client("logs"), "describe_log_groups", "logGroups")
     ],
-    "CloudWatch alarms": lambda s: [
-        a["AlarmName"] for a in _pages(s.client("cloudwatch"), "describe_alarms", "MetricAlarms")
-    ],
+    "CloudWatch alarms": _alarms,
     "CloudWatch dashboards": lambda s: [
         d["DashboardName"]
         for d in _pages(s.client("cloudwatch"), "list_dashboards", "DashboardEntries")
@@ -111,8 +138,24 @@ CHECKS: dict[str, Callable[[Any], list[str]]] = {
 }
 
 
+NEEDS_ACCOUNT = {"EBS snapshots", "AMIs"}
+
+
 def run_checks(session: Any) -> dict[str, list[str]]:
-    return {name: check(session) for name, check in CHECKS.items()}
+    """Run every check; a check that raises is recorded as ERROR (never as clean)."""
+    results: dict[str, list[str]] = {}
+    account: str | None = None
+    for name, check in CHECKS.items():
+        try:
+            if name in NEEDS_ACCOUNT:
+                if account is None:
+                    account = session.client("sts").get_caller_identity()["Account"]
+                results[name] = check(session, account)
+            else:
+                results[name] = check(session)
+        except Exception as exc:
+            results[name] = [f"ERROR: {type(exc).__name__}: {exc}"]
+    return results
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -128,17 +171,26 @@ def main(argv: list[str] | None = None) -> int:
     leftovers = sum(len(v) for v in results.values())
     lines = [
         f"Teardown check {stamp}",
-        f"account {identity['Account']}  identity {identity['Arn']}  region {args.region}",
+        f"account {identity['Account']}  identity {identity['Arn']}"
+        f"  profile {args.profile}  region {args.region}",
+        "scope: " + ", ".join(CHECKS) + " (this region only; global services such as IAM "
+        "and S3 are not checked)",
         "",
     ]
+
+    def label(found: list[str]) -> str:
+        if not found:
+            return " ok "
+        return "ERR " if found[0].startswith("ERROR:") else "LEFT"
+
     for name, found in results.items():
-        lines.append(f"[{'LEFT' if found else ' ok '}] {name}: {len(found)}")
+        lines.append(f"[{label(found)}] {name}: {len(found)}")
         lines += [f"         - {item}" for item in found]
     lines += [
         "",
         "CLEAN: no billable resources remain"
         if not leftovers
-        else f"NOT CLEAN: {leftovers} resource(s) remain",
+        else f"NOT CLEAN: {leftovers} resource(s) remain or check(s) failed",
     ]
     text = "\n".join(lines)
     print(text)

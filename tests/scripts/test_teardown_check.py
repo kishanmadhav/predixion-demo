@@ -4,6 +4,7 @@ import boto3
 import pytest
 from moto import mock_aws
 
+import scripts.teardown_check as td
 from scripts.teardown_check import main, run_checks
 
 
@@ -42,3 +43,36 @@ def test_main_writes_a_log_and_exits_nonzero_when_not_clean(
     assert main(["--out-dir", str(tmp_path)]) == 1
     [log] = list(tmp_path.glob("teardown-check-*.log"))
     assert "NOT CLEAN" in log.read_text()
+
+
+def test_snapshot_owned_by_the_account_is_reported(aws) -> None:
+    ec2 = aws.client("ec2")
+    vol = ec2.create_volume(AvailabilityZone="ap-south-1a", Size=1)["VolumeId"]
+    snap = ec2.create_snapshot(VolumeId=vol)["SnapshotId"]
+    assert run_checks(aws)["EBS snapshots"] == [snap]
+
+
+def test_main_clean_account_returns_zero_and_logs_scope(aws, tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr("scripts.teardown_check.make_session", lambda profile, region: aws)
+    assert main(["--out-dir", str(tmp_path), "--profile", "p1"]) == 0
+    [log] = list(tmp_path.glob("teardown-check-*.log"))
+    text = log.read_text()
+    assert "CLEAN: no billable" in text and "profile p1" in text and "scope:" in text
+    assert "Classic load balancers" in text
+
+
+def test_a_failing_check_is_an_error_and_the_rest_still_run(
+    aws, tmp_path: Path, monkeypatch
+) -> None:
+    def boom(session) -> list[str]:
+        raise RuntimeError("AccessDenied")
+
+    monkeypatch.setitem(td.CHECKS, "NAT gateways", boom)
+    monkeypatch.setattr("scripts.teardown_check.make_session", lambda profile, region: aws)
+    aws.client("ec2").create_volume(AvailabilityZone="ap-south-1a", Size=10)
+    results = run_checks(aws)
+    assert results["NAT gateways"][0].startswith("ERROR:")
+    assert len(results["EBS volumes"]) == 1
+    assert main(["--out-dir", str(tmp_path)]) == 1
+    [log] = list(tmp_path.glob("teardown-check-*.log"))
+    assert "ERROR: RuntimeError: AccessDenied" in log.read_text()
