@@ -56,6 +56,7 @@ locals {
     LLM_BASE_URL     = local.provider_url
     LLM_MODEL        = var.llm_model
     LLM_TIMEOUT_S    = tostring(var.stage_timeouts_s.llm)
+    LLM_MAX_TOKENS   = "80" # short replies: a voice turn is a sentence or two, and fewer tokens means lower latency
     TTS_PROVIDER     = local.provider_kind
     TTS_BASE_URL     = local.provider_url
     TTS_MODEL        = var.tts_model

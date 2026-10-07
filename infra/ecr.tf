@@ -21,7 +21,7 @@ resource "aws_ecr_lifecycle_policy" "app" {
 
 locals {
   app_root  = abspath("${path.module}/..")
-  src_files = sort(concat(tolist(fileset(local.app_root, "src/**/*.py")), ["pyproject.toml", "uv.lock", "Dockerfile", "README.md"]))
+  src_files = sort(concat(tolist(fileset(local.app_root, "src/**/*.py")), ["pyproject.toml", "uv.lock", "Dockerfile"]))
   src_hash  = substr(sha1(join("", [for f in local.src_files : filesha1("${local.app_root}/${f}")])), 0, 12)
 }
 

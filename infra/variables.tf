@@ -24,6 +24,10 @@ variable "az_ids" {
 variable "allowed_cidrs" {
   description = "CIDRs allowed to reach the ALB (your IP as x.x.x.x/32)."
   type        = list(string)
+  validation {
+    condition     = alltrue([for c in var.allowed_cidrs : !contains(["0.0.0.0/0", "::/0"], c)])
+    error_message = "allowed_cidrs must not contain 0.0.0.0/0 or ::/0: the demo ALB is unauthenticated, so use your own IP as x.x.x.x/32."
+  }
 }
 
 variable "model_tier" {

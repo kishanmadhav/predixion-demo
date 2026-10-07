@@ -111,6 +111,22 @@ resource "aws_cloudwatch_metric_alarm" "target_5xx" {
   alarm_actions       = [aws_sns_topic.alarms.arn]
 }
 
+# The ALB's own 5xx (no healthy target, 502/503/504) never reaches the target metric above.
+resource "aws_cloudwatch_metric_alarm" "elb_5xx" {
+  alarm_name          = "${local.name}-elb-5xx"
+  alarm_description   = "The ALB itself returned 5xx (no healthy targets, or targets closing connections)."
+  namespace           = "AWS/ApplicationELB"
+  metric_name         = "HTTPCode_ELB_5XX_Count"
+  dimensions          = { LoadBalancer = local.alb }
+  statistic           = "Sum"
+  period              = 60
+  evaluation_periods  = 2
+  comparison_operator = "GreaterThanThreshold"
+  threshold           = 5
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alarms.arn]
+}
+
 resource "aws_cloudwatch_metric_alarm" "breaker_open" {
   for_each            = local.stage_metric
   alarm_name          = "${local.name}-breaker-open-${each.key}"
@@ -166,11 +182,12 @@ locals {
         title = "Error rate (%)", region = var.region, view = "timeSeries", period = 60, yAxis = { left = { min = 0 } }
         metrics = [
           [{ expression = "100 * IF(m1 > 0, m2 / m1, 0)", label = "degraded turns %", id = "e1" }],
-          [{ expression = "100 * IF(m3 > 0, m4 / m3, 0)", label = "HTTP 5xx %", id = "e2" }],
+          [{ expression = "100 * IF(m3 > 0, (m4 + m5) / m3, 0)", label = "HTTP 5xx % (target + ELB)", id = "e2" }],
           [local.ns, "Turns", local.svc[0], local.svc[1], { id = "m1", stat = "Sum", visible = false }],
           [local.ns, "TurnsDegraded", local.svc[0], local.svc[1], { id = "m2", stat = "Sum", visible = false }],
           ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", local.alb, { id = "m3", stat = "Sum", visible = false }],
           ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", local.alb, { id = "m4", stat = "Sum", visible = false }],
+          ["AWS/ApplicationELB", "HTTPCode_ELB_5XX_Count", "LoadBalancer", local.alb, { id = "m5", stat = "Sum", visible = false }],
         ]
       }
     },

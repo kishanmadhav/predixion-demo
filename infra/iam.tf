@@ -101,7 +101,7 @@ data "aws_iam_policy_document" "gpu" {
     resources = ["${aws_cloudwatch_log_group.gpu.arn}:*"]
   }
   statement {
-    sid = "SsmAgent" # the explicit action list of AmazonSSMManagedInstanceCore
+    sid = "SsmAgent" # the SSM agent actions Run Command and inventory need; modelled on AmazonSSMManagedInstanceCore but not identical (no ssm:GetParameter(s))
     actions = [
       "ssm:DescribeAssociation",
       "ssm:GetDeployablePatchSnapshotForInstance",

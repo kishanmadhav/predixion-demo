@@ -58,6 +58,7 @@ resource "aws_lb_target_group" "models" {
   port                 = 8080
   protocol             = "TCP"
   deregistration_delay = 10
+  preserve_client_ip   = "false" # the models security group admits the NLB security group, not client IPs
   health_check {
     protocol            = "HTTP"
     path                = var.model_tier == "gpu" ? "/ready" : "/health"
