@@ -121,13 +121,17 @@ def create_app(settings: Settings | None = None, *, runtime: Runtime | None = No
             return
         opened = await open_runtime(settings or Settings())
         app.state.runtime = opened
-        sweeper = asyncio.create_task(opened.run_sweeper())
+        tasks = [asyncio.create_task(opened.run_sweeper())]
+        if opened.emf is not None:
+            tasks.append(asyncio.create_task(opened.run_emf()))
         try:
             yield
         finally:
-            sweeper.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await sweeper
+            for task in tasks:
+                task.cancel()
+            for task in tasks:
+                with contextlib.suppress(asyncio.CancelledError):
+                    await task
             await opened.close()
 
     app = FastAPI(
@@ -147,8 +151,14 @@ def create_app(settings: Settings | None = None, *, runtime: Runtime | None = No
     @app.post("/v1/calls/{call_id}/turns")
     async def post_turn(call_id: str, body: TurnRequest, request: Request) -> JSONResponse:
         audio = base64.b64decode(body.audio_b64)
-        result = await rt(request).pipeline.handle_turn(call_id, body.turn_id, audio)
+        runtime_ = rt(request)
+        with runtime_.calls.turn(call_id):
+            result = await runtime_.pipeline.handle_turn(call_id, body.turn_id, audio)
         return JSONResponse(_turn_response(result), status_code=409 if result.duplicate else 200)
+
+    @app.post("/v1/calls/{call_id}/end")
+    async def end_call(call_id: str, request: Request) -> dict[str, Any]:
+        return {"call_id": call_id, "was_active": rt(request).calls.end(call_id)}
 
     @app.get("/v1/calls/{call_id}")
     async def get_call(call_id: str, request: Request) -> dict[str, Any]:
@@ -203,6 +213,9 @@ def create_app(settings: Settings | None = None, *, runtime: Runtime | None = No
 
     @app.get("/metrics")
     async def metrics(request: Request) -> Response:
-        return Response(rt(request).metrics.render(), media_type="text/plain; version=0.0.4")
+        runtime_ = rt(request)
+        runtime_.metrics.active_calls.set(runtime_.calls.active())
+        runtime_.metrics.in_flight_turns.set(runtime_.calls.in_flight)
+        return Response(runtime_.metrics.render(), media_type="text/plain; version=0.0.4")
 
     return app

@@ -8,12 +8,17 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 import httpx
 
+from voice_agent.calls import CallTracker
 from voice_agent.config import Settings
 from voice_agent.dlq import DeadLetterService
+from voice_agent.emf import EmfReporter, write_stdout
 from voice_agent.fallback import load_fallbacks
 from voice_agent.metrics import Metrics
 from voice_agent.pipeline import TurnPipeline
@@ -44,6 +49,8 @@ class Runtime:
     pipeline: TurnPipeline
     dlq: DeadLetterService
     recovered_dead_letters: list[int]
+    calls: CallTracker
+    emf: EmfReporter | None
     _client: httpx.AsyncClient | None
 
     @property
@@ -56,7 +63,7 @@ class Runtime:
         a failed write). Returns the dead-letter ids it created."""
         ids = await self.store.recover(stale_after_s=self.lease_s)
         for _ in ids:
-            self.metrics.dead_letters.labels("interrupted").inc()
+            self.metrics.observe_dead_letter("interrupted")
         if ids:
             log.warning("sweeper dead-lettered %d stale turn(s): %s", len(ids), ids)
         return ids
@@ -68,6 +75,26 @@ class Runtime:
                 await self.sweep()
             except Exception:
                 log.exception("lease sweep failed; will retry")
+
+    async def run_emf(self, write: Callable[[dict[str, Any]], None] = write_stdout) -> None:
+        """Flush EMF metrics every `emf_interval_s`; refresh DLQ depth once a minute."""
+        assert self.emf is not None
+        pending: int | None = None
+        last_count = float("-inf")
+        while True:
+            await asyncio.sleep(self.settings.emf_interval_s)
+            try:
+                if time.monotonic() - last_count >= 60:
+                    pending = (await self.store.dead_letter_counts())["pending"]
+                    last_count = time.monotonic()
+                for doc in self.emf.flush(
+                    active_calls=self.calls.active(),
+                    in_flight=self.calls.in_flight,
+                    dlq_pending=pending,
+                ):
+                    write(doc)
+            except Exception:
+                log.exception("EMF flush failed; will retry")
 
     async def close(self) -> None:
         if self._client is not None:
@@ -150,9 +177,14 @@ async def _wire(
     # work that has outlived the lease, never another task's in-flight turns.
     stale_after = lease_seconds(settings) if store.shared else None
     recovered = await store.recover(stale_after_s=stale_after) if recover else []
-    metrics = Metrics()
+    emf = (
+        EmfReporter(namespace=settings.emf_namespace, service=settings.emf_service_name)
+        if settings.emf_enabled
+        else None
+    )
+    metrics = Metrics(emf=emf)
     for _ in recovered:
-        metrics.dead_letters.labels("interrupted").inc()
+        metrics.observe_dead_letter("interrupted")
 
     owned_client = None
     if providers is None:
@@ -181,5 +213,7 @@ async def _wire(
         pipeline=pipeline,
         dlq=dlq,
         recovered_dead_letters=recovered,
+        calls=CallTracker(settings.call_idle_s),
+        emf=emf,
         _client=owned_client,
     )

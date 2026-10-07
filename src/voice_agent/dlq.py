@@ -183,6 +183,6 @@ class DeadLetterService:
         return results + list(await asyncio.gather(*(bounded(i) for i in ids)))
 
     def _done(self, outcome: ReplayOutcome) -> ReplayOutcome:
-        self._metrics.replays.labels(outcome.status).inc()
+        self._metrics.observe_replay(outcome.status)
         log.info("dlq replay id=%s status=%s error=%s", outcome.id, outcome.status, outcome.error)
         return outcome

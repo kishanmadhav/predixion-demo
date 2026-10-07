@@ -42,6 +42,13 @@ class Settings(BaseSettings):
     handoff_after_degraded: int = Field(2, ge=1)
     # How often the service reclaims turns/replay claims orphaned while it runs.
     sweep_interval_s: float = Field(30.0, gt=0)
+    # A call counts as active until ended or idle this long (turns are ~30 s apart).
+    call_idle_s: float = Field(45.0, gt=0)
+    # CloudWatch Embedded Metric Format on stdout (enable on AWS).
+    emf_enabled: bool = False
+    emf_namespace: str = "CollectionsChallenge"
+    emf_service_name: str = "voice-agent"
+    emf_interval_s: float = Field(10.0, gt=0)
     llm_history_turns: int = Field(6, ge=0)
     system_prompt: str = DEFAULT_SYSTEM_PROMPT
     # Optional directory with pre-recorded retry_prompt.wav / handoff.wav.

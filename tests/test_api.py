@@ -7,7 +7,7 @@ import pytest
 
 from tests.fakes import FakeLlm, FakeStt, FakeTts, fake_providers, fast_settings
 from voice_agent.api import create_app
-from voice_agent.wiring import open_runtime
+from voice_agent.wiring import Runtime, open_runtime
 
 AUDIO = base64.b64encode(b"hello").decode()
 
@@ -157,3 +157,33 @@ async def test_oversize_audio_is_rejected_with_422(ctx: Ctx) -> None:
     too_big = "A" * 300_004  # valid base64, one block over the cap
     r = await client.post("/v1/calls/c1/turns", json={"turn_id": "t1", "audio_b64": too_big})
     assert r.status_code == 422
+
+
+@pytest.fixture
+async def rt_ctx(tmp_path: Path) -> AsyncIterator[tuple[httpx.AsyncClient, Runtime]]:
+    providers, *_ = fake_providers()
+    runtime = await open_runtime(fast_settings(tmp_path), providers=providers)
+    transport = httpx.ASGITransport(app=create_app(runtime=runtime))
+    async with httpx.AsyncClient(transport=transport, base_url="http://va") as client:
+        yield client, runtime
+    await runtime.close()
+
+
+async def test_a_call_is_active_after_a_turn_and_not_after_end(
+    rt_ctx: tuple[httpx.AsyncClient, Runtime],
+) -> None:
+    client, runtime = rt_ctx
+    await client.post("/v1/calls/c9/turns", json={"turn_id": "t1", "audio_b64": "AAAA"})
+    assert runtime.calls.active() == 1
+    r = await client.post("/v1/calls/c9/end")
+    assert r.status_code == 200 and r.json() == {"call_id": "c9", "was_active": True}
+    assert runtime.calls.active() == 0
+    again = await client.post("/v1/calls/c9/end")
+    assert again.json()["was_active"] is False
+
+
+async def test_metrics_exposes_active_calls(ctx: Ctx) -> None:
+    client, *_ = ctx
+    await client.post("/v1/calls/c9/turns", json={"turn_id": "t1", "audio_b64": "AAAA"})
+    body = (await client.get("/metrics")).text
+    assert "active_calls 1.0" in body

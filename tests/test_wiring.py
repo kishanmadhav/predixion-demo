@@ -1,4 +1,7 @@
+import asyncio
+import contextlib
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -28,3 +31,39 @@ async def test_shared_store_startup_recovery_spares_other_tasks_live_turns(
 def test_lease_is_at_least_a_minute_and_three_deadlines(tmp_path: Path) -> None:
     assert lease_seconds(fast_settings(tmp_path, turn_deadline_s=6)) == 60
     assert lease_seconds(fast_settings(tmp_path, turn_deadline_s=30)) == 90
+
+
+async def test_run_emf_flushes_active_calls_and_turn_metrics(tmp_path: Path) -> None:
+    providers, *_ = fake_providers()
+    settings = fast_settings(tmp_path, emf_enabled=True, emf_interval_s=0.01)
+    runtime = await open_runtime(settings, providers=providers)
+    try:
+        assert runtime.emf is not None
+        runtime.calls.touch("c1")
+        await runtime.pipeline.handle_turn("c1", "t1", b"hello")
+        docs: list[dict[str, Any]] = []
+        flushed = asyncio.Event()
+
+        def write(doc: dict[str, Any]) -> None:
+            docs.append(doc)
+            flushed.set()
+
+        task = asyncio.create_task(runtime.run_emf(write))
+        await asyncio.wait_for(flushed.wait(), timeout=5)
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+        first = next(d for d in docs if "Stage" not in d)
+        assert first["ActiveCalls"] == 1 and first["Turns"] == 1
+        assert first["DlqPending"] == 0 and len(first["TurnLatency"]) == 1
+    finally:
+        await runtime.close()
+
+
+async def test_emf_is_off_by_default(tmp_path: Path) -> None:
+    providers, *_ = fake_providers()
+    runtime = await open_runtime(fast_settings(tmp_path), providers=providers)
+    try:
+        assert runtime.emf is None and runtime.metrics.emf is None
+    finally:
+        await runtime.close()
