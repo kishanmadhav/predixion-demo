@@ -11,7 +11,7 @@ from __future__ import annotations
 import asyncio
 import os
 import random
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any
@@ -97,10 +97,14 @@ def create_proxy_app(config: ProxyConfig, *, client: httpx.AsyncClient | None = 
                 {"error": f"upstream unreachable: {type(exc).__name__}"}, status_code=502
             )
         stats["ok" if upstream_response.status_code < 400 else "upstream_error"] += 1
+        passthrough = {}
+        if "retry-after" in upstream_response.headers:
+            passthrough["Retry-After"] = upstream_response.headers["retry-after"]
         return Response(
             upstream_response.content,
             status_code=upstream_response.status_code,
             media_type=upstream_response.headers.get("content-type"),
+            headers=passthrough,
         )
 
     async def injected(stage: Stage, outcome: str) -> Response:
@@ -120,12 +124,14 @@ def create_proxy_app(config: ProxyConfig, *, client: httpx.AsyncClient | None = 
             )
         return _malformed(stage)
 
+    def make_handler(path: str) -> Callable[[Request], Awaitable[Response]]:
+        async def handler(request: Request) -> Response:
+            return await forward(path, request)
+
+        return handler
+
     for route in ROUTES:
-
-        async def handler(request: Request, _path: str = route) -> Response:
-            return await forward(_path, request)
-
-        app.add_api_route(route, handler, methods=["POST"])
+        app.add_api_route(route, make_handler(route), methods=["POST"])
 
     @app.get("/health")
     async def health() -> dict[str, str]:

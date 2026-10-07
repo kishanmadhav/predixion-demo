@@ -113,3 +113,24 @@ async def test_malformed_200_is_counted_and_call_still_ends() -> None:
     assert s.http_failures == 2 * s.calls_started
     assert s.errors["bad response"] == s.http_failures
     assert len(ends) == s.calls_started
+
+
+async def test_draining_progress_line_shows_totals_across_phases() -> None:
+    async with make_client("http://svc", transport=fake_service([])) as client:
+        campaign = Campaign(
+            client,
+            [Phase("p", 0.02, 300)],
+            audio=[b"RIFF"],
+            turns_per_call=1,
+            gap_s=0.0,
+            rng=random.Random(4),
+            progress_every_s=999,
+            out=lambda _: None,
+        )
+        stats = await campaign.run()
+    done = sum(stats["p"].turns.values())
+    assert done >= 1
+    line = campaign.progress_line(60.0)
+    assert f"turns={done:<5}" in line
+    assert "(all phases)" in line
+    assert "phase=draining" in line

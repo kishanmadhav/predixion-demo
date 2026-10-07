@@ -80,6 +80,7 @@ class Settings(BaseSettings):
     llm_model: str = "qwen2.5:1.5b"
     llm_api_key: SecretStr | None = None
     llm_timeout_s: float = Field(3.0, gt=0)
+    llm_max_tokens: int = Field(200, ge=1)
 
     # TTS
     tts_provider: ProviderKind = "mock"

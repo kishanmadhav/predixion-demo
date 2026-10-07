@@ -214,15 +214,27 @@ class Campaign:
     async def _progress(self, started: float) -> None:
         while True:
             await asyncio.sleep(self._progress_every_s)
+            self._out(self.progress_line(time.monotonic() - started))
+
+    def progress_line(self, elapsed_s: float) -> str:
+        """One progress line; while draining it shows totals across every phase."""
+        if self._phase == "draining":
+            stats = PhaseStats()
+            for s in self.stats.values():
+                stats.turns.update(s.turns)
+                stats.http_failures += s.http_failures
+                stats.latencies_ms.extend(s.latencies_ms)
+        else:
             stats = self.stats.get(self._phase) or PhaseStats()
-            recent = stats.latencies_ms[-200:]
-            done = sum(stats.turns.values())
-            self._out(
-                f"t+{(time.monotonic() - started) / 60:5.1f}m  phase={self._phase:<9} "
-                f"active_calls={self.active:<4} turns={done:<5} "
-                f"degraded={done - stats.turns['completed']:<4} http_fail={stats.http_failures:<3} "
-                f"p50={percentile(recent, 0.5):.0f}ms p99={percentile(recent, 0.99):.0f}ms"
-            )
+        recent = stats.latencies_ms[-200:]
+        done = sum(stats.turns.values())
+        return (
+            f"t+{elapsed_s / 60:5.1f}m  phase={self._phase:<9} "
+            f"active_calls={self.active:<4} turns={done:<5} "
+            f"degraded={done - stats.turns['completed']:<4} http_fail={stats.http_failures:<3} "
+            f"p50={percentile(recent, 0.5):.0f}ms p99={percentile(recent, 0.99):.0f}ms"
+            + (" (all phases)" if self._phase == "draining" else "")
+        )
 
 
 def format_campaign(stats: dict[str, PhaseStats]) -> str:
