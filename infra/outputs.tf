@@ -13,3 +13,11 @@ output "url" {
 output "cluster" {
   value = aws_ecs_cluster.main.name
 }
+
+output "models_endpoint" {
+  value = local.provider_url
+}
+
+output "gpu_asg" {
+  value = var.model_tier == "gpu" ? aws_autoscaling_group.gpu[0].name : null
+}
