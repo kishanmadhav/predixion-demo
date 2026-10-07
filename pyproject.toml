@@ -12,6 +12,7 @@ dependencies = [
     "pydantic>=2.7",
     "pydantic-settings>=2.4",
     "prometheus-client>=0.20",
+    "boto3>=1.35",
 ]
 
 [project.scripts]
@@ -23,6 +24,7 @@ dev = [
     "pytest-asyncio>=0.24",
     "ruff>=0.6",
     "mypy>=1.11",
+    "moto[dynamodb]>=5.0",
 ]
 
 [build-system]
@@ -52,3 +54,7 @@ strict = true
 mypy_path = "src"
 packages = ["voice_agent", "mock_provider"]
 plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["boto3", "boto3.*", "botocore", "botocore.*", "moto"]
+ignore_missing_imports = true

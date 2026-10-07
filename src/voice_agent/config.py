@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     db_path: Path = Path("data/voice_agent.db")
     log_level: str = "INFO"
 
+    # Persistence: SQLite for one process, DynamoDB when several tasks share state.
+    store_backend: Literal["sqlite", "dynamodb"] = "sqlite"
+    dynamodb_table: str = "collectionsinference-state"
+    aws_region: str = "ap-south-1"
+    dynamodb_endpoint_url: str | None = None
+
     # Turn budget: a caller will not wait forever for the agent to speak.
     turn_deadline_s: float = Field(6.0, gt=0)
     handoff_after_degraded: int = Field(2, ge=1)

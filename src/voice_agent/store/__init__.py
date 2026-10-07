@@ -19,7 +19,15 @@ if TYPE_CHECKING:
 
 
 async def open_store(settings: Settings) -> Store:
-    """The backend `settings.store_backend` names (SQLite unless configured)."""
+    """The backend `settings.store_backend` names."""
+    if settings.store_backend == "dynamodb":
+        from voice_agent.store.dynamodb import DynamoStore  # boto3 only when needed
+
+        return DynamoStore.open(
+            settings.dynamodb_table,
+            region=settings.aws_region,
+            endpoint_url=settings.dynamodb_endpoint_url,
+        )
     return await SqliteStore.open(settings.db_path)
 
 

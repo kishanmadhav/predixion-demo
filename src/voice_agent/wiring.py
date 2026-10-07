@@ -28,6 +28,12 @@ STAGE_NAMES = ("stt", "llm", "tts")
 log = logging.getLogger(__name__)
 
 
+def lease_seconds(settings: Settings) -> float:
+    """How long a turn or a replay claim may sit untouched before it is reclaimed:
+    comfortably longer than any turn can legitimately run."""
+    return max(60.0, 3 * settings.turn_deadline_s)
+
+
 @dataclass
 class Runtime:
     settings: Settings
@@ -42,9 +48,8 @@ class Runtime:
 
     @property
     def lease_s(self) -> float:
-        """How long a turn or a replay claim may sit untouched before the sweeper
-        reclaims it: comfortably longer than any turn can legitimately run."""
-        return max(60.0, 3 * self.settings.turn_deadline_s)
+        """The sweeper's lease (see `lease_seconds`)."""
+        return lease_seconds(self.settings)
 
     async def sweep(self) -> list[int]:
         """Reclaim work orphaned while the service kept running (a cancelled request,
@@ -141,7 +146,10 @@ async def _wire(
     client: httpx.AsyncClient | None,
     recover: bool,
 ) -> Runtime:
-    recovered = await store.recover() if recover else []
+    # A shared store (DynamoDB) is used by other live tasks: at startup reclaim only
+    # work that has outlived the lease, never another task's in-flight turns.
+    stale_after = lease_seconds(settings) if store.shared else None
+    recovered = await store.recover(stale_after_s=stale_after) if recover else []
     metrics = Metrics()
     for _ in recovered:
         metrics.dead_letters.labels("interrupted").inc()
