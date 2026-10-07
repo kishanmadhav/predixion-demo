@@ -8,11 +8,13 @@ Bring the stack up and warm it first. These are not filmed except the `terraform
 
 ```bash
 export AWS_PROFILE=predixion
-# terraform.tfvars: model_tier = "gpu", allowed_cidrs = ["<your-ip>/32"], campaign_prewarm for the spike
+# terraform.tfvars: model_tier = "gpu", allowed_cidrs = ["<your-ip>/32"],
+#   campaign_prewarm = { ..., min_tasks = 3 }   # pre-warm the floor; autoscaling must add the rest during the spike
 terraform -chdir=infra apply
-URL=$(terraform -chdir=infra output -raw url)
+URL=$(terraform -chdir=infra output -raw url)     # PowerShell: $URL = terraform -chdir=infra output -raw url
 terraform -chdir=infra output dashboard_url
-curl -s $URL/health                          # all breakers closed, dead_letters empty
+curl -s $URL/health                          # all breakers closed
+curl -s "$URL/v1/dlq?limit=1"                # counts: nothing pending
 uv run python scripts/chaos.py reset         # clean proxy counters
 ```
 
@@ -23,8 +25,8 @@ Open the dashboard in one window and a terminal in another. Set the dashboard to
 | Time | Shot | What to say / point at |
 |---|---|---|
 | 0:00-0:30 | Architecture slide (the README diagram), then the tail of `terraform apply` output | One apply builds everything: network, ECS, ALB, DynamoDB, the GPU host, dashboard and alarms. Show the outputs: `url`, `dashboard_url` |
-| 0:30-1:15 | Dashboard at baseline | Flat 2 tasks, "Active calls" about 5 per task (target 10), p50/p90/p99 flat, HTTP 5xx 0, a steady 20% of provider attempts failing but few degraded turns (retries absorb them) |
-| 1:15-2:30 | Spike phase | "Active calls" climbs above target, "Tasks: desired vs running" steps up (desired first, then running), latency percentiles hold. Show one row of "Autoscaling and task events" |
+| 0:30-1:15 | Dashboard at baseline | Flat at the pre-warmed floor of 3 tasks (2 without the pre-warm), "Active calls" about 5 per task (target 10), p50/p90/p99 flat, HTTP 5xx 0, a steady 20% of provider attempts failing but few degraded turns (retries absorb them) |
+| 1:15-2:30 | Spike phase | "Active calls" climbs above target, and ActiveCalls target tracking adds tasks above the pre-warmed floor of 3: "Tasks: desired vs running" steps up (desired first, then running). This scale-out is the point of the shot, so the pre-warm must not already cover the peak, latency percentiles hold. Show one row of "Autoscaling and task events" |
 | 2:30-3:30 | LLM outage | Breaker widget goes to 2 for `llm`, "Error rate (%)" degraded % rises while HTTP 5xx stays 0, "Dead-letter queue" pending climbs |
 | 3:30-4:15 | Recovery and replay | Breaker widget back to 0; replay; pending drops and "resolved by replay" rises |
 | 4:15-5:00 | Campaign summary, destroy, teardown check | Summary table (`http_fail` is 0 in every phase), `terraform destroy`, then the CLEAN line of the teardown log |
@@ -53,19 +55,20 @@ aws application-autoscaling describe-scaling-activities --service-namespace ecs 
 
 ```bash
 uv run python scripts/chaos.py outage --stage llm --seconds 60
-curl -s $URL/health                          # llm breaker "open", dead_letters pending rising
+curl -s $URL/health                          # llm breaker "open"
+curl -s "$URL/v1/dlq?status=pending&limit=1"  # counts: pending rising
 uv run python scripts/chaos.py stats         # LLM requests flat while the breaker is open
 ```
 
 **3:30-4:15 (recovery).** The breakers close by themselves once the outage window ends. Check, then replay:
 
 ```bash
-curl -s $URL/health                          # every breaker "closed"
-curl -s -X POST "$URL/v1/dlq/replay?limit=1000"
-curl -s "$URL/v1/dlq?status=pending&limit=5" # shrinking; run the replay again for stragglers
+curl -s $URL/health                          # every breaker "closed": do not replay before this
+curl -s -X POST "$URL/v1/dlq/replay?limit=50"
+curl -s "$URL/v1/dlq?status=pending&limit=1" # counts: shrinking; repeat both until pending is 0
 ```
 
-While a breaker is still open the replay marks every entry `skipped` and changes nothing; wait a few seconds and repeat. Entries that fail go back to `pending` and are picked up by the next replay.
+Replay in batches of 50 and repeat until nothing is pending: the ALB cuts a request after 60 s idle, so one large replay would time out. While a breaker is still open the bulk replay returns 200 with every entry `skipped` and changes nothing; wait a few seconds and repeat. Entries that fail go back to `pending` and are picked up by the next batch.
 
 **4:15-5:00 (end).** When the campaign finishes, show its summary table (also in `results/campaign.txt`). Then:
 

@@ -10,9 +10,13 @@ Short version: the callers and borrowers are in India, the data is personal and 
 - **No third-party model API.** STT, LLM and TTS are open-weight models (faster-whisper, Qwen2.5-7B-Instruct-AWQ on vLLM, Kokoro) that run on our own GPU instance. A hosted model API would send transcripts to someone else's servers, often outside India. Here a transcript never leaves the region.
 - **What does leave the region:** only the model weights and container images coming in (Hugging Face, Docker Hub, GHCR through the NAT gateway). No borrower data goes out.
 
+## Demo access model
+
+The demo ALB is HTTP-only and unauthenticated. It is restricted by security group to `allowed_cidrs` (a single /32, the operator's IP) and serves synthetic data only, so access control is the network allow-list, not IAM. The DLQ and admin endpoints share that public listener. For production: an HTTPS listener with an ACM certificate, service-to-service auth (SigV4 or mTLS) or a private ALB behind the telephony layer, and the DLQ and admin endpoints off the public listener. IAM governs the AWS control plane and the tasks' access to DynamoDB, not callers of the HTTP API.
+
 ## Logs contain transcripts
 
-- The service logs and the dead-letter records hold transcripts. Log retention is 7 days (`log_retention_days`), and access is limited to the IAM roles and users in this account.
+- The service logs and the dead-letter records hold transcripts. Log retention is 7 days (`log_retention_days`), and access to the logs and the DynamoDB table is limited to the IAM roles and users in this account. The HTTP API itself is not IAM-protected (see "Demo access model").
 - For production, mask PAN and Aadhaar numbers (and phone numbers where possible) before anything is logged or stored, and set the retention to what policy requires, not to the demo's 7 days.
 
 ## Latency to callers
@@ -26,7 +30,7 @@ for i in $(seq 20); do
 done
 ```
 
-`/health` does no model work, so `connect` and `ttfb` are the network plus the ALB plus the task. Turn latency through the models is on the dashboard ("Turn latency percentiles (ms)").
+`/health` does no model or store work, so `connect` and `ttfb` are the network plus the ALB plus the task. Turn latency through the models is on the dashboard ("Turn latency percentiles (ms)").
 
 ## GPU availability and subnets by AZ ID
 

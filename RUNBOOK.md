@@ -2,13 +2,23 @@
 
 Scope: the Round 2 deployment in ap-south-1 (see the README section "Round 2: AWS deployment"). Names below are the real ones from `infra/`: cluster `collectionsinference`, ECS service `voice-agent`, SNS topic `collectionsinference-alarms`, CloudWatch dashboard `collectionsinference`.
 
-Set up your shell once (from the repo root, with the `predixion` profile configured for ap-south-1):
+Set up your shell once (from the repo root, with the `predixion` profile configured for ap-south-1). The commands in this runbook assume Git Bash (or another POSIX shell):
 
 ```bash
-export AWS_PROFILE=predixion
+export AWS_PROFILE=predixion AWS_REGION=ap-south-1
 URL=$(terraform -chdir=infra output -raw url)
 terraform -chdir=infra output dashboard_url      # open this in the browser
 ```
+
+In PowerShell the equivalent is:
+
+```powershell
+$env:AWS_PROFILE = "predixion"; $env:AWS_REGION = "ap-south-1"
+$URL = terraform -chdir=infra output -raw url
+terraform -chdir=infra output dashboard_url
+```
+
+Use `$URL` the same way in the `curl` commands (in Windows PowerShell 5.1 call `curl.exe`, since `curl` is an alias for `Invoke-WebRequest`).
 
 ## Trigger
 
@@ -21,6 +31,7 @@ It pages through the SNS topic `collectionsinference-alarms` (alarm and OK trans
 | `collectionsinference-breaker-open-stt` / `-llm` / `-tts` | A circuit breaker is open on at least one task: that dependency is failing |
 | `collectionsinference-dlq-pending` | More than 50 dead letters pending for 5 minutes |
 | `collectionsinference-http-5xx` | The service itself returned 5xx. Degraded turns are HTTP 200s, so this should stay at 0 |
+| `collectionsinference-elb-5xx` | The ALB itself returned 5xx (no healthy targets, or a request cut off). A long bulk replay can cause this: see Post-incident |
 
 ## First 5 minutes
 
@@ -41,7 +52,7 @@ The dashboard's "Autoscaling and task events" table shows the same history, plus
 **2. Which breakers are open, and are we degrading?**
 
 - Widgets: "Circuit breakers (0 closed, 1 half-open, 2 open)", "Error rate (%)" (degraded turns % versus HTTP 5xx %), "Provider failures by stage (attempts)".
-- CLI fallback: `/health` reports each stage's breaker and the dead-letter counts. It is answered by one task, which is enough to see the pattern (breakers are per task).
+- CLI fallback: `/health` reports liveness and each stage's breaker state. It is answered by one task, which is enough to see the pattern (breakers are per task). It deliberately never touches DynamoDB or the models, so a store or provider brownout cannot fail the ALB health check. The dead-letter counts are on `GET /v1/dlq` (see below).
 
 ```bash
 curl -s $URL/health
@@ -80,7 +91,16 @@ Symptoms: one or more breakers at 2, "Provider failures by stage" rising, degrad
      STORE_BACKEND=dynamodb AWS_PROFILE=predixion uv run voice-agent dlq show <id>
      ```
 4. **Fix or wait out the dependency.** For the GPU tier: check the NLB health widget, then the GPU host's log group `/gpu/collectionsinference` in CloudWatch Logs (docker compose output: vLLM, Speaches, chaos proxy). If the host was replaced it is reloading models for 15-20 minutes; the breakers stay open until it is healthy, which is correct.
-5. **Do not replay yet.** Wait until every breaker is closed (see Post-incident). The replay endpoint refuses while any breaker is open.
+
+   If the host never becomes healthy, the bootstrap itself may have failed. Its output goes to `/var/log/collections-bootstrap.log` on the host (and is not in CloudWatch until the compose containers start). Find the instance, then read the EC2 console output or tail the log over SSM:
+
+   ```bash
+   ID=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names $(terraform -chdir=infra output -raw gpu_asg) --query 'AutoScalingGroups[0].Instances[0].InstanceId' --output text --profile predixion --region ap-south-1)
+   aws ec2 get-console-output --instance-id $ID --latest --output text --profile predixion --region ap-south-1
+   CMD=$(aws ssm send-command --instance-ids $ID --document-name AWS-RunShellScript --parameters 'commands=["tail -n 100 /var/log/collections-bootstrap.log"]' --query Command.CommandId --output text --profile predixion --region ap-south-1)
+   aws ssm get-command-invocation --command-id $CMD --instance-id $ID --query StandardOutputContent --output text --profile predixion --region ap-south-1
+   ```
+5. **Do not replay yet.** Wait until every breaker is closed (see Post-incident). While any breaker is open a replay does nothing useful: the bulk endpoint answers 200 with every entry `skipped`, and the single-entry endpoint answers 503.
 
 ## If autoscaling is the cause
 
@@ -92,26 +112,34 @@ Symptoms: "Active calls" per task well above 10 and "Tasks: desired vs running" 
 2. **Fargate quota.** A new account can have a low on-demand Fargate vCPU limit.
 
    ```bash
-   aws service-quotas get-service-quota --service-code fargate --quota-code L-3032A538 --profile predixion
+   aws service-quotas get-service-quota --service-code fargate --quota-code L-3032A538 --profile predixion --region ap-south-1
    ```
 
    Each task is 1 vCPU, so the quota must be at least `max_tasks`, and about double that during a rolling deployment.
 3. **Subnet IP space.** Each task takes one IP from a private subnet. The two private /23 subnets hold about 500 IPs each, so this is not a limit at 10 tasks. It matters only if the VPC CIDR or subnet sizes were changed.
-4. **Cooldowns.** The target-tracking policy `active-calls-per-task` targets an average of 10 active calls per task, with a scale-out cooldown of 60 s and a scale-in cooldown of 180 s. A new task takes about a minute to start and pass health checks (30 s grace period), so a ramp faster than that is absorbed by the existing tasks first. That is why campaign windows are pre-warmed.
+4. **Cooldowns.** The target-tracking policy `active-calls-per-task` targets an average of 10 active calls per task, with a scale-out cooldown of 60 s and a scale-in cooldown of 180 s. A new task takes about a minute to start and pass health checks (30 s grace period), so a ramp faster than that is absorbed by the existing tasks first. That is why campaign windows are pre-warmed: pre-warm the floor (3 tasks), and let the ActiveCalls target tracking scale the peak. The pre-warm is not meant to cover the whole peak.
 5. **Pre-warm.** For a known campaign window, set `campaign_prewarm` in `terraform.tfvars` and apply:
 
    ```hcl
-   campaign_prewarm = { start = "at(2026-10-08T10:00:00)", end = "at(2026-10-08T10:40:00)", min_tasks = 6 }
+   campaign_prewarm = { start = "at(2026-10-08T10:00:00)", end = "at(2026-10-08T10:40:00)", min_tasks = 3 }
    ```
 
-   Times are UTC. Start it at least 2 minutes before the window. In an incident you can raise the floor by hand: `aws application-autoscaling register-scalable-target --service-namespace ecs --resource-id service/collectionsinference/voice-agent --scalable-dimension ecs:service:DesiredCount --min-capacity 6 --max-capacity 10 --profile predixion`. The next `terraform apply` resets it (see the caveats below).
+   Times are UTC. Start it at least 2 minutes before the window. In an incident you can raise the floor by hand: `aws application-autoscaling register-scalable-target --service-namespace ecs --resource-id service/collectionsinference/voice-agent --scalable-dimension ecs:service:DesiredCount --min-capacity 3 --max-capacity 10 --profile predixion`. The next `terraform apply` resets it (see the caveats below).
 
 ### Caveats before running `terraform apply` during an incident
 
-- Changing app code or `failure_rate` replaces the GPU host, which means about 15-20 minutes of image and model download with the model tier down. Do not do this during a campaign window.
+- Changing app source code (`src/**/*.py`, `pyproject.toml`, `uv.lock`, the `Dockerfile`; a README edit does not count) or `failure_rate` replaces the GPU host, which means about 15-20 minutes of image and model download with the model tier down. Do not do this during a campaign window.
 - An apply during a campaign window resets the pre-warm: Terraform sets the autoscaling minimum back to `min_tasks`, so the service can scale in mid-campaign.
-- The GPU has a dead-man switch (`gpu_max_hours`, default 4). After it fires, the ASG is at 0 and the model tier is down. Re-applying after it fired turns the GPU back on (and starts the 15-20 minute boot again). To extend the switch, run `terraform -chdir=infra apply -replace='aws_autoscaling_schedule.gpu_off[0]'`.
-- Before the first `model_tier = "gpu"` apply, verify the vLLM image tag exists, or the host will boot and never serve: `docker manifest inspect vllm/vllm-openai:v0.31.0`.
+- The GPU has a dead-man switch (`gpu_max_hours`, default 4). After it fires, the ASG is at 0 and the model tier is down. Re-applying after it fired turns the GPU back on (and starts the 15-20 minute boot again).
+- Before the first `model_tier = "gpu"` apply, run these two checks (neither is done by Terraform):
+  - The vLLM image tag exists, or the host will boot and never serve: `docker manifest inspect vllm/vllm-openai:v0.31.0 > /dev/null`.
+  - The Deep Learning AMI's root device is `/dev/xvda`, which the launch template assumes:
+
+    ```bash
+    AMI=$(aws ssm get-parameter --name /aws/service/deeplearning/ami/x86_64/base-oss-nvidia-driver-gpu-amazon-linux-2023/latest/ami-id --query Parameter.Value --output text --profile predixion --region ap-south-1)
+    aws ec2 describe-images --image-ids $AMI --query 'Images[0].RootDeviceName' --profile predixion --region ap-south-1
+    ```
+- To extend the dead-man switch, quote the address so it works in both shells: `terraform -chdir=infra apply "-replace=aws_autoscaling_schedule.gpu_off[0]"`.
 
 ## Escalation
 
@@ -123,14 +151,17 @@ Fill in the placeholders when the stack is deployed, and do not leave any in a l
 
 ## Post-incident
 
-1. **Confirm recovery.** All three breakers at 0 on the dashboard, p99 back under the alarm line, and `curl -s $URL/health` shows `closed` for each stage.
-2. **Replay the dead letters.**
+1. **Confirm recovery.** All three breakers at 0 on the dashboard, p99 back under the alarm line, and `curl -s $URL/health` shows `closed` for each stage. Wait until every breaker is closed (poll `/health`, or watch the "Circuit breakers" widget) before replaying.
+2. **Replay the dead letters in batches of 50.** Loop until nothing is pending:
 
    ```bash
-   curl -s -X POST "$URL/v1/dlq/replay?limit=1000"
+   curl -s -X POST "$URL/v1/dlq/replay?limit=50"
+   curl -s "$URL/v1/dlq?status=pending&limit=1"     # "counts" holds the pending total; repeat both until it is 0
    ```
 
-   Replay is canary-first: it replays one entry, and continues (8 at a time) only after one has resolved and every breaker is closed. While any breaker is open it replays nothing: the bulk call returns HTTP 200 with every entry marked `skipped` (the single-entry endpoint `POST /v1/dlq/{id}/replay` returns 503), and no entry is charged a replay. It is safe to repeat: entries that fail go back to `pending` with their replay count incremented. Use the HTTP endpoint rather than `voice-agent dlq replay`, because the CLI on your laptop cannot reach the internal model tier. Check the result with `curl -s "$URL/v1/dlq?status=pending"` and the "Dead-letter queue" widget (resolved by replay).
+   Why 50: the ALB's idle timeout is 60 s and a request that runs longer is cut with a 504 (and an ELB 5xx on the dashboard). One `limit=1000` call over a few hundred entries at 2-3 s per real-model turn takes longer than that. The replay keeps running on the server after the 504, but you lose its result. Batches of 50 stay well under the limit.
+
+   Replay is canary-first: it replays one entry, and continues (8 at a time) only after one has resolved and every breaker is closed. While any breaker is open it replays nothing: the bulk call returns HTTP 200 with every entry marked `skipped` (the single-entry endpoint `POST /v1/dlq/{id}/replay` returns 503), and no entry is charged a replay. It is safe to repeat: entries that fail go back to `pending` with their replay count incremented. Use the HTTP endpoint rather than `voice-agent dlq replay`, because the CLI on your laptop cannot reach the internal model tier. Watch the "Dead-letter queue" widget (resolved by replay) as well.
 3. **Record actual versus expected.**
 
    | Measure | Expected | Actual |
@@ -144,11 +175,11 @@ Fill in the placeholders when the stack is deployed, and do not leave any in a l
    | p99 `TurnLatency` at peak | under the 3x baseline line | |
 
 4. **Write down the cause and the one change that would have prevented it** (alarm threshold, quota, pre-warm, timeout).
-5. **Teardown reminder.** If this was a demo or test stack, tear it down. The GPU host alone costs about $1.21 per hour and keeps running until you do:
+5. **Teardown reminder.** If this was a demo or test stack, tear it down. The GPU host alone costs $1.208 per hour on-demand (about $1.30 per hour including EBS and NAT data) and keeps running until you do:
 
    ```bash
    terraform -chdir=infra destroy           # Docker Desktop must be running
    uv run python scripts/teardown_check.py  # writes teardown/teardown-check-<UTC>.log
    ```
 
-   The check exits 0 only when nothing billable is left. Commit the log.
+   The check exits 0 only when nothing billable is left. Commit the log. If the only leftover is a Container Insights log group (`/aws/ecs/containerinsights/...`), it was recreated by a late flush after the destroy: wait 5 minutes, run `aws logs delete-log-group --log-group-name <name> --profile predixion --region ap-south-1`, and re-run the check.

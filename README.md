@@ -4,7 +4,7 @@ A collections voice-agent inference service. Each caller turn goes through **STT
 - **Retries** with exponential backoff and full jitter.
 - **A circuit breaker for each stage.**
 - **Graceful degradation** to a pre-rendered fallback prompt.
-- **A dead-letter queue** that lives in SQLite and can be inspected and replayed. Every failed turn is written to it *before* the caller hears the fallback.
+- **A dead-letter queue** that lives in SQLite locally (DynamoDB on AWS, Round 2) and can be inspected and replayed. Every failed turn is written to it *before* the caller hears the fallback.
 
 **Round 2 (deploying this to AWS, ap-south-1): see [Round 2: AWS deployment](#round-2-aws-deployment-ap-south-1).** The rest of this README, up to that section, describes the Round 1 service that Round 2 builds on.
 
@@ -13,7 +13,7 @@ A local mock provider stands in for STT/LLM/TTS. It adds realistic latency, fail
 | Brief | Where |
 |---|---|
 | Resilience layer: retries, backoff, circuit breaking | [`resilience/`](src/voice_agent/resilience), [§ Failure handling](#failure-handling) |
-| Dead letters that can be inspected and replayed | [`store.py`](src/voice_agent/store.py), [`dlq.py`](src/voice_agent/dlq.py), [§ Dead-letter queue](#dead-letter-queue) |
+| Dead letters that can be inspected and replayed | [`store/`](src/voice_agent/store), [`dlq.py`](src/voice_agent/dlq.py), [§ Dead-letter queue](#dead-letter-queue) |
 | Model-agnostic dependency boundary | [`providers/`](src/voice_agent/providers), plus [`docker-compose.openweight.yml`](docker-compose.openweight.yml) for the open-weight stack |
 | Half-page cost write-up **and** one paragraph on swapping the mock for an open-weight model | Submitted separately as a one-page PDF. Its cost figures are computed by [`cost/fargate_cost.py`](cost/fargate_cost.py) (`uv run python -m cost.fargate_cost`); [`docs/writeup_pdf.py`](docs/writeup_pdf.py) rebuilds it with `uv run --with reportlab python docs/writeup_pdf.py` |
 | No hardcoded secrets | Keys come only from env (`SecretStr`, no defaults); [`.env.example`](.env.example) is blank |
@@ -28,7 +28,7 @@ You need Python ≥ 3.11 and [uv](https://docs.astral.sh/uv/). No AWS account, A
 
 ```bash
 uv sync                                   # install
-uv run pytest -q                          # 264 tests, ~40 s
+uv run pytest -q                          # 279 tests, ~40 s
 
 # terminal 1: mock STT/LLM/TTS provider, 20% failure rate
 uv run voice-agent mock --port 9000
@@ -85,7 +85,7 @@ The 3 failed replays hit the mock's normal 20% failure rate on every retry. They
 ```
 POST /v1/calls/{call_id}/turns
   └─ TurnPipeline  (per-turn deadline, default 6 s)
-       ├─ write-ahead: turn row = in_progress            ── SQLite (WAL, synchronous=FULL)
+       ├─ write-ahead: turn row = in_progress            ── store (SQLite WAL locally; DynamoDB on AWS)
        ├─ ResilientStage("stt") = Retry(Breaker(Timeout(SttProvider.transcribe)))
        ├─ ResilientStage("llm") = Retry(Breaker(Timeout(LlmProvider.complete)))
        ├─ ResilientStage("tts") = Retry(Breaker(Timeout(TtsProvider.synthesize)))
@@ -103,7 +103,7 @@ providers/  base.py (Protocols + ProviderError)  ← the only thing resilience/ 
 | `providers/http.py` | The only place that maps HTTP and transport failures to error kinds |
 | `resilience/retry.py`, `breaker.py`, `stage.py` | Retry policy, circuit breaker, and the composition of the two. No HTTP, no adapter imports |
 | `pipeline.py` | One turn end to end: degradation, handoff decision, call history for the LLM |
-| `store.py`, `dlq.py` | Audit log, dead letters, crash recovery, replay |
+| `store/`, `dlq.py` | Audit log, dead letters, crash recovery, replay (SQLite locally, DynamoDB on AWS) |
 | `api.py`, `cli.py`, `wiring.py` | HTTP API, operator CLI, and the single wiring that API, CLI and tests share |
 | `mock_provider/app.py` | The mock "provider having a bad day" |
 
@@ -154,7 +154,7 @@ Duplicate turn ids (a telephony retry) never re-run the providers. They return `
 
 ## Dead-letter queue
 
-A dead letter is a row in the `dead_letters` table of `data/voice_agent.db`. It holds:
+A dead letter is a row in the `dead_letters` table of `data/voice_agent.db` (with the SQLite backend; on AWS it is an item in the DynamoDB table, same fields). It holds:
 - the original request (the audio),
 - the failed stage and error kind,
 - **every attempt** (stage, attempt number, outcome, error, HTTP status, duration, backoff),
@@ -194,7 +194,7 @@ The mock's `POST /admin/chaos {"stage": "llm", "outage_s": 30}`, `{"failure_rate
 
 ## Tests
 
-`uv run pytest -q` runs 264 tests in about 40 s. CI also runs `ruff`, `ruff format --check`, `mypy --strict`, a Docker build and `terraform validate` on `infra/`.
+`uv run pytest -q` runs 279 tests in about 40 s. CI also runs `ruff`, `ruff format --check`, `mypy --strict`, a Docker build and `terraform validate` on `infra/`.
 
 - **Unit tests:** retry jitter bounds and determinism; every breaker transition, including stale-epoch outcomes and probe limits; and the stage composition, all with a fake clock.
 - **Adapter contract tests:** run with `httpx.MockTransport`.
@@ -207,7 +207,8 @@ The mock's `POST /admin/chaos {"stage": "llm", "outage_s": 30}`, `{"failure_rate
 
 ## Production notes and next steps
 
-- **Distributed state:** breaker state is per process, which suits Fargate tasks that each protect themselves. The dead-letter store would become a managed queue plus a table (SQS + DynamoDB, or Postgres) instead of a local SQLite file.
+- **Distributed state:** breaker state is per process, which suits Fargate tasks that each protect themselves. The dead-letter store is shared across tasks in Round 2 (DynamoDB); a managed queue (SQS) in front of replay is the next step if replay volume grows.
+- **Retention:** the DynamoDB table has no TTL, so turns, audio and dead letters are kept until the stack is destroyed. That suits a demo. Production needs a retention TTL (and an archive, if the compliance record must outlive it) set from policy.
 - **Data protection:** transcripts and audio in collections are sensitive. They need encryption at rest, a retention policy, and access audit on the DLQ.
 - **Schema changes** are versioned (`PRAGMA user_version`). Older databases, such as a `data/` directory or the `agent-data` Docker volume from an earlier build, are migrated in place at start-up.
 - **Authentication:** the API (including the DLQ endpoints, which expose audio and transcripts) has no auth, a stated non-goal for this local exercise. In production it would sit behind service-to-service auth.
@@ -236,11 +237,13 @@ Other documents: [`RUNBOOK.md`](RUNBOOK.md) (what to do when the latency alarm f
                                 docker compose:
                                   chaos-proxy :8080  (20% injected failures, outage switch) ──┐
                                   vLLM        :8000  Qwen2.5-7B-Instruct-AWQ  ◄───────────────┤
-                                  Speaches    :8001  faster-whisper (STT) + Kokoro (TTS) ◄────┘
+                                  Speaches    :8000  faster-whisper (STT) + Kokoro (TTS) ◄────┘
  NAT gateway (1) for egress: image + model downloads; S3/DynamoDB gateway endpoints bypass it
 ```
 
 With `model_tier = "mock"` the internal NLB fronts the Round 1 mock provider on Fargate instead of the GPU host. That is a cheap way to check all the infrastructure before paying for a GPU.
+
+**Security posture of the demo.** The demo ALB is HTTP-only and unauthenticated. It is restricted by security group to `allowed_cidrs` (your own /32) and serves synthetic data only (generated utterances, no borrower data). The DLQ and admin endpoints are on that same listener. The production path is an HTTPS listener with an ACM certificate, service-to-service auth (SigV4 or mTLS) or a private ALB behind the telephony layer, and the DLQ and admin endpoints moved off the public listener.
 
 ### Prerequisites
 
@@ -249,8 +252,8 @@ With `model_tier = "mock"` the internal NLB fronts the Round 1 mock provider on 
 - A quota of at least 4 vCPUs for "Running On-Demand G and VT instances" (quota code `L-DB2E81BA`). New accounts start at 0. Request it on day one, because approval can take a day or more:
 
   ```bash
-  aws service-quotas get-service-quota --service-code ec2 --quota-code L-DB2E81BA --profile predixion
-  aws service-quotas request-service-quota-increase --service-code ec2 --quota-code L-DB2E81BA --desired-value 4 --profile predixion
+  aws service-quotas get-service-quota --service-code ec2 --quota-code L-DB2E81BA --profile predixion --region ap-south-1
+  aws service-quotas request-service-quota-increase --service-code ec2 --quota-code L-DB2E81BA --desired-value 4 --profile predixion --region ap-south-1
   ```
 - Docker Desktop, running, for every `terraform` command including `destroy`. Terraform builds and pushes the app image through the docker provider (`docker_host` defaults to the Windows named pipe; on Linux or macOS set `docker_host = "unix:///var/run/docker.sock"`).
 - Terraform 1.9 or later, AWS CLI v2, and [uv](https://docs.astral.sh/uv/).
@@ -264,7 +267,7 @@ aws configure --profile predixion          # access key, secret, default region 
 aws sts get-caller-identity --profile predixion
 ```
 
-**2. A budget that cannot be fooled by the credit.** The credit would hide real spend from a normal budget, so this one is a $100 gross-spend budget (`IncludeCredit` is false) with alerts at 10, 25, 50 and 80% of actual spend and at 100% of forecast. It was created once with the command below (the file contents are shown as a shape: the name is your choice, and the email address and account id are placeholders) (Budgets is a global service served from us-east-1):
+**2. A budget that cannot be fooled by the credit.** The credit would hide real spend from a normal budget, so this one is a $100 gross-spend budget (`IncludeCredit` is false) with alerts at 10, 25, 50 and 80% of actual spend and at 100% of forecast. Create it once with the command below; it is a one-time CLI step, not part of the Terraform. The file contents are shown as a shape: the name is your choice, and the email address and account id are placeholders. Budgets is a global service served from us-east-1.
 
 ```bash
 aws budgets create-budget --account-id <ACCOUNT_ID> --budget file://budget.json --notifications-with-subscribers file://notifs.json --profile predixion --region us-east-1
@@ -317,7 +320,7 @@ Set `allowed_cidrs` to your own public IP (`curl -s https://checkip.amazonaws.co
 | `model_tier` | `mock` | `mock` (Fargate mock provider) or `gpu` (g5.xlarge with vLLM and Speaches) |
 | `min_tasks` / `max_tasks` | 2 / 10 | Fargate task floor and ceiling |
 | `target_active_calls` | 10 | Autoscaling target, active calls per task |
-| `campaign_prewarm` | none | `{ start, end, min_tasks }`, `at(...)` or `cron(...)` in UTC |
+| `campaign_prewarm` | none | `{ start, end, min_tasks }`, `at(...)` or `cron(...)` in UTC. Use `min_tasks = 3`: pre-warm the floor, and let ActiveCalls target tracking scale the spike |
 | `failure_rate` | 0.2 | Injected provider failure rate (changing it replaces the GPU host) |
 | `baseline_p99_ms` | 3000 | The latency alarm fires above 3x this |
 | `gpu_max_hours` | 4 | Dead-man switch: the GPU scales to zero this long after creation |
@@ -325,7 +328,7 @@ Set `allowed_cidrs` to your own public IP (`curl -s https://checkip.amazonaws.co
 
 ### Deploy
 
-All Terraform commands run from the repo root through `-chdir=infra`. The sequence:
+All Terraform commands run from the repo root through `-chdir=infra`. The commands below assume a POSIX shell (Git Bash on Windows). In PowerShell, set the URL with `$URL = terraform -chdir=infra output -raw url` and use `$URL` the same way; `mkdir -p results` becomes `New-Item -ItemType Directory -Force results`. The sequence:
 
 ```bash
 # 1. Caller utterances (the six WAVs in assets/utterances are committed; this regenerates them, Windows only)
@@ -351,13 +354,18 @@ terraform -chdir=infra apply
 # The GPU host downloads about 11 GB of images and 7 GB of model weights: allow 15-20 minutes
 # before the "Model tier health (NLB healthy hosts)" widget shows 1.
 
-# 6. The campaign: 10 min at 10 calls/min, 15 min at 50 calls/min, 10 min at 10 calls/min
+# 6. The campaign: 10 min at 10 calls/min, 15 min at 50 calls/min, 10 min at 10 calls/min.
+#    Pre-warm the floor first: campaign_prewarm in terraform.tfvars with min_tasks = 3 (not 6), then apply.
+#    The spike must be absorbed by ActiveCalls target tracking scaling above that floor; that is what the demo shows.
 mkdir -p results
 uv run voice-agent campaign --url $URL --json-out results/campaign.json
 
 # 7. While it runs (during the spike): chaos, then replay
 uv run python scripts/chaos.py outage --stage llm --seconds 60
-curl -s -X POST "$URL/v1/dlq/replay?limit=1000"
+# Replay once every breaker is closed (poll `curl -s $URL/health`, or watch the BreakerState widget),
+# in batches: the ALB closes a request after 60 s idle, so one big replay would return 504.
+curl -s -X POST "$URL/v1/dlq/replay?limit=50"      # repeat until the next line shows 0 pending
+curl -s "$URL/v1/dlq?status=pending&limit=1"       # "counts" holds the pending total
 
 # 8. Tear down, then prove it
 terraform -chdir=infra destroy
@@ -365,6 +373,7 @@ uv run python scripts/teardown_check.py
 ```
 
 Notes:
+- If `teardown_check.py` reports only a leftover Container Insights log group (`/aws/ecs/containerinsights/...`), it is a late flush that recreated the group after the destroy. Wait 5 minutes, delete it with `aws logs delete-log-group --log-group-name <name> --profile predixion --region ap-south-1`, and re-run the check.
 - The first `apply` also builds and pushes the app image (a few minutes) and waits for the ECS service to reach steady state.
 - `chaos.py` works only with `model_tier = "gpu"` (it reaches the chaos proxy over SSM). Flags: `stats`, `reset`, `outage --stage {stt,llm,tts} --seconds N`, `rate --rate 0.2 [--stage ...]`.
 - The campaign `--profile` option is the traffic profile as `name:minutes:calls_per_min,...`, not an AWS profile. Its exit code is 1 if any HTTP request failed; the target is 0 failures.
@@ -392,7 +401,7 @@ Estimated, not measured. The ap-south-1 on-demand prices were checked on 2026-10
 | **Subtotal** | | | **~$11.50** |
 | **With 20% contingency** | | | **~$14 (about ₹1,200)** |
 
-The GPU and the NAT data dominate, and each extra GPU hour costs about $1.30. The two levers are destroying the stack between sessions and the GPU dead-man switch. These are estimates; measured numbers from Cost Explorer and CloudWatch will replace them after the demo run.
+The GPU and the NAT data dominate, and each extra GPU hour costs about $1.30 ($1.208/h on-demand, plus EBS and NAT data). The two levers are destroying the stack between sessions and the GPU dead-man switch. These are estimates; measured numbers from Cost Explorer and CloudWatch will replace them after the demo run.
 
 | | Estimate | Measured (to be filled after the demo) |
 |---|---|---|
@@ -405,10 +414,10 @@ The GPU and the NAT data dominate, and each extra GPU hour costs about $1.30. Th
 1. **Model tier is EC2 with docker compose**, not ECS-on-EC2 or SageMaker. Only one GPU fits the quota and three model servers must share it; ECS gives a GPU to one container exclusively, and SageMaker wants one GPU instance per endpoint. An ASG (min = max = 1) keeps the host self-healing and an internal NLB gives it a stable address.
 2. **Fault injection is a proxy mode of the Round 1 mock** (`voice-agent chaos-proxy`). It applies the same 20% failure mix and forwards healthy requests to vLLM and Speaches by path. The service talks to it through the `openai` adapters, which is the Round 1 swap story.
 3. **DynamoDB replaces SQLite**, because Fargate disks are per-task and a scale-in would lose dead letters. One table holds turns and dead letters; `TransactWriteItems` keeps "turn degraded plus dead letter written" atomic. SQS was rejected for the system of record because a send cannot join that transaction. Both store backends pass the same contract tests.
-4. **Autoscaling is on ActiveCalls per task** (target 10, min 2, max 10), emitted as a CloudWatch EMF metric; ALB stickiness keeps each call on one task. A scheduled action pre-warms before a known campaign window.
-5. **Observability is EMF plus ALB and Container Insights metrics**, with one dashboard (traffic, capacity, dependencies) and alarms for p99 latency over 3x baseline, 5xx, open breakers and DLQ growth.
+4. **Autoscaling is on ActiveCalls per task** (target 10, min 2, max 10), emitted as a CloudWatch EMF metric; ALB stickiness keeps each call on one task. A scheduled action pre-warms the floor before a known campaign window; the target-tracking policy does the scaling to the peak.
+5. **Observability is EMF plus ALB and Container Insights metrics**, with one dashboard (traffic, capacity, dependencies) and alarms for p99 latency over 3x baseline, 5xx (target and ALB-generated), open breakers and DLQ growth. The EMF flush interval is 10 s (`EMF_INTERVAL_S`), deliberately short so the dashboard and the ActiveCalls scaling signal react within a minute, at the cost of a few more metric datapoints.
 6. **IAM uses custom policies with explicit actions only.** `scripts/check_iam.py` fails on any `*` action or AWS-managed policy attachment; the checker has its own tests in `tests/scripts`.
-7. **Cost guardrails live in the IaC:** the budget above, a GPU dead-man switch, and `teardown_check.py`.
+7. **Cost guardrails:** the budget is a one-time CLI step (above, not in the Terraform); the GPU dead-man switch is in the IaC, and `teardown_check.py` proves the destroy.
 8. **State and secrets:** Terraform state is local and git-ignored (an S3 backend with a lockfile is the team setup); there are no secrets, as model servers need no keys and the deployer uses its own CLI profile.
 
 ### Deliverables

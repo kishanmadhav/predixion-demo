@@ -25,7 +25,7 @@ remains.
                                 docker compose:
                                   chaos-proxy :8080  (20% injected failures, outage switch) ──┐
                                   vLLM        :8000  Qwen2.5-7B-Instruct-AWQ  ◄───────────────┤
-                                  Speaches    :8001  faster-whisper (STT) + Kokoro (TTS) ◄────┘
+                                  Speaches    :8000  faster-whisper (STT) + Kokoro (TTS) ◄────┘
  NAT gateway (1) for egress: image + model downloads; S3/DynamoDB gateway endpoints bypass it
 ```
 
