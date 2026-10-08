@@ -6,7 +6,7 @@ A collections voice-agent inference service. Each caller turn goes through **STT
 - **Graceful degradation** to a pre-rendered fallback prompt.
 - **A dead-letter queue** that lives in SQLite locally (DynamoDB on AWS, Round 2) and can be inspected and replayed. Every failed turn is written to it *before* the caller hears the fallback.
 
-**Round 2 (deploying this to AWS, ap-south-1): see [Round 2: AWS deployment](#round-2-aws-deployment-ap-south-1).** The rest of this README, up to that section, describes the Round 1 service that Round 2 builds on.
+**Round 2 (deploying this to AWS, ap-southeast-2): see [Round 2: AWS deployment](#round-2-aws-deployment-ap-southeast-2).** The rest of this README, up to that section, describes the Round 1 service that Round 2 builds on.
 
 A local mock provider stands in for STT/LLM/TTS. It adds realistic latency, fails 20% of requests, and can force outages on demand. The provider boundary is model-agnostic: open-weight models (faster-whisper, Ollama/vLLM/llama.cpp, Kokoro) replace the mock through configuration alone.
 
@@ -19,8 +19,8 @@ A local mock provider stands in for STT/LLM/TTS. It adds realistic latency, fail
 | No hardcoded secrets | Keys come only from env (`SecretStr`, no defaults); [`.env.example`](.env.example) is blank |
 | Runs from documented setup | [§ Quick start](#quick-start): `uv sync`, then 3 commands; or `docker compose up --build` |
 | Design spec | [`docs/superpowers/specs/…-design.md`](docs/superpowers/specs/2026-10-05-resilient-voice-agent-design.md) |
-| **Round 2:** AWS deployment, autoscaling, dashboard, teardown | [§ Round 2: AWS deployment (ap-south-1)](#round-2-aws-deployment-ap-south-1), [`infra/`](infra) |
-| **Round 2:** runbook, demo shot list, ap-south-1 notes | [`RUNBOOK.md`](RUNBOOK.md), [`docs/demo-shot-list.md`](docs/demo-shot-list.md), [`docs/ap-south-1-notes.md`](docs/ap-south-1-notes.md) |
+| **Round 2:** AWS deployment, autoscaling, dashboard, teardown | [§ Round 2: AWS deployment (ap-southeast-2)](#round-2-aws-deployment-ap-southeast-2), [`infra/`](infra) |
+| **Round 2:** runbook, demo shot list, region notes | [`RUNBOOK.md`](RUNBOOK.md), [`docs/demo-shot-list.md`](docs/demo-shot-list.md), [`docs/ap-south-1-notes.md`](docs/ap-south-1-notes.md) |
 
 ## Quick start
 
@@ -217,9 +217,11 @@ The mock's `POST /admin/chaos {"stage": "llm", "outage_s": 30}`, `{"failure_rate
 
 ---
 
-## Round 2: AWS deployment (ap-south-1)
+## Round 2: AWS deployment (ap-southeast-2)
 
-The Round 1 service, deployed to a fresh AWS account in ap-south-1 as a production-shaped system. One `terraform apply` builds everything (nothing from the console); it runs a scripted campaign against real open-weight STT/LLM/TTS models on one GPU instance with Round 1's 20% fault injection in front of them, autoscales on in-flight calls, is observable from one CloudWatch dashboard, and is torn down with `terraform destroy` plus a log proving nothing billable remains.
+The Round 1 service, deployed to a fresh AWS account in ap-southeast-2 as a production-shaped system. One `terraform apply` builds everything (nothing from the console); it runs a scripted campaign against real open-weight STT/LLM/TTS models on one GPU instance with Round 1's 20% fault injection in front of them, autoscales on in-flight calls, is observable from one CloudWatch dashboard, and is torn down with `terraform destroy` plus a log proving nothing billable remains.
+
+**Region.** The brief asks for ap-south-1 (Mumbai). The deployment account sits in an AWS Organization whose region-restriction SCP allows workloads only in ap-southeast-2 (Sydney), and it could not be edited, so the stack runs in Sydney. Nothing in the code is tied to a region: `terraform apply -var region=ap-south-1 -var 'az_ids=["aps1-az1","aps1-az3"]'` deploys to Mumbai unchanged. [`docs/ap-south-1-notes.md`](docs/ap-south-1-notes.md) explains why Mumbai is the production choice for this workload.
 
 Other documents: [`RUNBOOK.md`](RUNBOOK.md) (what to do when the latency alarm fires), [`docs/demo-shot-list.md`](docs/demo-shot-list.md) (5-minute recording plan with commands), [`docs/ap-south-1-notes.md`](docs/ap-south-1-notes.md) (data residency, latency, AZs, DR), and the design spec [`docs/superpowers/specs/2026-10-07-round2-aws-design.md`](docs/superpowers/specs/2026-10-07-round2-aws-design.md).
 
@@ -248,12 +250,12 @@ With `model_tier = "mock"` the internal NLB fronts the Round 1 mock provider on 
 ### Prerequisites
 
 - An AWS account on the Free plan (this one has $100 of credit).
-- If the account sits in an AWS Organization, the organization's SCP must allow EC2, ECS, ELB, DynamoDB, CloudWatch, Logs, ECR, SSM and Auto Scaling in ap-south-1. Otherwise `apply` fails with access-denied errors that name no policy.
+- If the account sits in an AWS Organization, the organization's SCP must allow EC2, ECS, ELB, DynamoDB, CloudWatch, Logs, ECR, SSM and Auto Scaling in ap-southeast-2. Otherwise `apply` fails with access-denied errors that name no policy.
 - A quota of at least 4 vCPUs for "Running On-Demand G and VT instances" (quota code `L-DB2E81BA`). New accounts start at 0. Request it on day one, because approval can take a day or more:
 
   ```bash
-  aws service-quotas get-service-quota --service-code ec2 --quota-code L-DB2E81BA --profile predixion --region ap-south-1
-  aws service-quotas request-service-quota-increase --service-code ec2 --quota-code L-DB2E81BA --desired-value 4 --profile predixion --region ap-south-1
+  aws service-quotas get-service-quota --service-code ec2 --quota-code L-DB2E81BA --profile predixion --region ap-southeast-2
+  aws service-quotas request-service-quota-increase --service-code ec2 --quota-code L-DB2E81BA --desired-value 4 --profile predixion --region ap-southeast-2
   ```
 - Docker Desktop, running, for every `terraform` command including `destroy`. Terraform builds and pushes the app image through the docker provider (`docker_host` defaults to the Windows named pipe; on Linux or macOS set `docker_host = "unix:///var/run/docker.sock"`).
 - Terraform 1.9 or later, AWS CLI v2, and [uv](https://docs.astral.sh/uv/).
@@ -263,7 +265,7 @@ With `model_tier = "mock"` the internal NLB fronts the Round 1 mock provider on 
 **1. The `predixion` profile.** All commands use a profile of that name, scoped to this project:
 
 ```bash
-aws configure --profile predixion          # access key, secret, default region ap-south-1, output json
+aws configure --profile predixion          # access key, secret, default region ap-southeast-2, output json
 aws sts get-caller-identity --profile predixion
 ```
 
@@ -373,7 +375,7 @@ uv run python scripts/teardown_check.py
 ```
 
 Notes:
-- If `teardown_check.py` reports only a leftover Container Insights log group (`/aws/ecs/containerinsights/...`), it is a late flush that recreated the group after the destroy. Wait 5 minutes, delete it with `aws logs delete-log-group --log-group-name <name> --profile predixion --region ap-south-1`, and re-run the check.
+- If `teardown_check.py` reports only a leftover Container Insights log group (`/aws/ecs/containerinsights/...`), it is a late flush that recreated the group after the destroy. Wait 5 minutes, delete it with `aws logs delete-log-group --log-group-name <name> --profile predixion --region ap-southeast-2`, and re-run the check.
 - The first `apply` also builds and pushes the app image (a few minutes) and waits for the ECS service to reach steady state.
 - `chaos.py` works only with `model_tier = "gpu"` (it reaches the chaos proxy over SSM). Flags: `stats`, `reset`, `outage --stage {stt,llm,tts} --seconds N`, `rate --rate 0.2 [--stage ...]`.
 - The campaign `--profile` option is the traffic profile as `name:minutes:calls_per_min,...`, not an AWS profile. Its exit code is 1 if any HTTP request failed; the target is 0 failures.
@@ -385,29 +387,29 @@ Notes:
 
 ### Cost
 
-Estimated, not measured. The ap-south-1 on-demand prices were checked on 2026-10-07, assuming the stack is up for about 6 hours in total (build and debug, a rehearsal, the recorded demo), the GPU runs about 5 hours and boots twice, and Fargate averages 4 tasks.
+Estimated, not measured. ap-southeast-2 on-demand prices from the AWS Price List API, checked on 2026-10-08. The plan fits a **$20 hard cap** with no credits: the stack is up for about 5 hours in total (about 1 hour on the mock tier to check the infrastructure, then one GPU session), the GPU runs about 3 hours and boots once, and Fargate averages 5 tasks of 0.5 vCPU / 1 GB.
 
 | Item | Unit price | Usage | Estimate |
 |---|---|---|---|
-| g5.xlarge | $1.208/h | 5 h | $6.04 |
-| NAT gateway, hourly | $0.056/h | 6 h | $0.34 |
-| NAT gateway, data | $0.056/GB | ~40 GB (images and model weights, 2 boots) | $2.24 |
-| Fargate 1 vCPU / 2 GB | $0.05187/task-h | ~24 task-h | $1.25 |
+| g5.xlarge | $1.308/h | 3 h | $3.92 |
+| NAT gateway, hourly | $0.059/h | 5 h | $0.30 |
+| NAT gateway, data | $0.059/GB | ~20 GB (images and model weights, 1 boot) | $1.18 |
+| Fargate 0.5 vCPU / 1 GB | $0.0296/task-h ($0.04856/vCPU-h + $0.00532/GB-h) | ~25 task-h | $0.74 |
 | CloudWatch (EMF metrics, Container Insights, logs) | $0.30/metric-month, prorated hourly | ~30 metrics, under 1 GB logs | ~$1.00 |
-| ALB + internal NLB | $0.0239/h each + LCU | 6 h | ~$0.40 |
-| Public IPv4 (NAT EIP + 2 ALB) | $0.005/h each | 6 h | $0.09 |
-| EBS gp3 (GPU root, 100 GB) | $0.0912/GB-month | 6 h | $0.08 |
-| DynamoDB on-demand, ECR, data out, Budgets | | tiny / free tier | ~$0.05 |
-| **Subtotal** | | | **~$11.50** |
-| **With 20% contingency** | | | **~$14 (about ₹1,200)** |
+| ALB + internal NLB | $0.0252/h each + LCU | 5 h | ~$0.35 |
+| Public IPv4 (NAT EIP + 2 ALB) | $0.005/h each | 5 h | $0.08 |
+| EBS gp3 (GPU root, 100 GB) | $0.096/GB-month | 3 h | $0.04 |
+| DynamoDB on-demand, ECR, data out, Budgets | | tiny | ~$0.05 |
+| **Subtotal** | | | **~$7.70** |
+| **With 30% contingency** | | | **~$10**, under the $20 cap |
 
-The GPU and the NAT data dominate, and each extra GPU hour costs about $1.30 ($1.208/h on-demand, plus EBS and NAT data). The two levers are destroying the stack between sessions and the GPU dead-man switch. These are estimates; measured numbers from Cost Explorer and CloudWatch will replace them after the demo run.
+The GPU and the NAT data dominate, and each extra GPU hour costs about $1.40 ($1.308/h on-demand, plus EBS and NAT). The guards are: destroying the stack after every session, the GPU dead-man switch (`gpu_max_hours`, default 3), an AWS Budget alerting at $5, $10 and $15 actual and $18 forecast, and the organization's Budgets spend-limit SCP. Measured numbers from Cost Explorer and CloudWatch will replace these estimates after the demo run.
 
 | | Estimate | Measured (to be filled after the demo) |
 |---|---|---|
-| Total | ~$11.50 (~$14 with contingency) | |
-| GPU hours | 5 | |
-| NAT data | ~40 GB | |
+| Total | ~$7.70 (~$10 with contingency) | |
+| GPU hours | 3 | |
+| NAT data | ~20 GB | |
 
 ### Design decisions, in short
 
@@ -429,7 +431,7 @@ The GPU and the NAT data dominate, and each extra GPU hour costs about $1.30 ($1
 | Scripts | [`scripts/chaos.py`](scripts/chaos.py), [`scripts/check_iam.py`](scripts/check_iam.py), [`scripts/teardown_check.py`](scripts/teardown_check.py), [`scripts/make_utterances.ps1`](scripts/make_utterances.ps1) |
 | Runbook | [`RUNBOOK.md`](RUNBOOK.md) |
 | 5-minute demo shot list | [`docs/demo-shot-list.md`](docs/demo-shot-list.md) |
-| ap-south-1 notes | [`docs/ap-south-1-notes.md`](docs/ap-south-1-notes.md) |
+| Region notes | [`docs/ap-south-1-notes.md`](docs/ap-south-1-notes.md) |
 | Cost write-up | This section holds the estimate. The one-page PDF (Round 1 cost, and the swap-the-mock paragraph) is sent separately and is not in the repo, and Round 2's measured numbers are added after the demo |
 | Teardown proof | `teardown/*.log`, written by `teardown_check.py` and committed after the destroy |
 | Reimbursement | The billing PDF is supplied separately by the account owner |

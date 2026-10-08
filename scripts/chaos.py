@@ -48,7 +48,7 @@ def main() -> int:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument("--profile", default="predixion")
-    parser.add_argument("--region", default="ap-south-1")
+    parser.add_argument("--region", default="ap-southeast-2")
     sub = parser.add_subparsers(dest="action", required=True)
     sub.add_parser("stats")
     sub.add_parser("reset")

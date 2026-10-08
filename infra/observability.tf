@@ -164,7 +164,7 @@ locals {
   widgets = [
     {
       type       = "text", x = 0, y = 0, width = 24, height = 2
-      properties = { markdown = "## Collections voice-agent (ap-south-1)\nTraffic, capacity, dependencies. Runbook trigger: p99 turn latency > 3x baseline (${3 * var.baseline_p99_ms} ms). Degraded turns are answered with a fallback prompt and dead-lettered; the replay path is in RUNBOOK.md." }
+      properties = { markdown = "## Collections voice-agent (${var.region})\nTraffic, capacity, dependencies. Runbook trigger: p99 turn latency > 3x baseline (${3 * var.baseline_p99_ms} ms). Degraded turns are answered with a fallback prompt and dead-lettered; the replay path is in RUNBOOK.md." }
     },
     {
       type = "metric", x = 0, y = 2, width = 8, height = 6

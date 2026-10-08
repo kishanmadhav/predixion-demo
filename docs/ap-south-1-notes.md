@@ -2,6 +2,8 @@
 
 Short version: the callers and borrowers are in India, the data is personal and financial, and the whole stack including the models runs in one in-country region.
 
+> **Where the demo actually ran.** The demo account's organization SCP allows workloads only in ap-southeast-2 (Sydney), so the recorded deployment is in Sydney (`region = "ap-southeast-2"`, `az_ids = ["apse2-az1", "apse2-az2"]`). The Terraform is region-agnostic; the notes below describe the production choice, Mumbai. With synthetic data only, running the demo outside India raises no residency issue.
+
 ## Borrower data stays in India
 
 - **DPDP Act 2023.** Borrower names, phone numbers, repayment status and call audio are personal data. Keeping them in an Indian region avoids the cross-border transfer question altogether, instead of relying on transfer rules and any restrictions the government may notify later.
@@ -34,7 +36,7 @@ done
 
 ## GPU availability and subnets by AZ ID
 
-g5 instances are offered in only two of Mumbai's Availability Zones, the ones with IDs `aps1-az1` and `aps1-az3`. AZ names (ap-south-1a, 1b, 1c) map to different IDs in different accounts, so the same name can be a zone without g5 in your account. The Terraform therefore takes AZ IDs (`az_ids`, default `["aps1-az1", "aps1-az3"]`) and creates the private subnets in those zones. That guarantees the GPU Auto Scaling group can launch in either subnet, and the Fargate tasks use the same two AZs.
+g5 instances are offered in only two of Mumbai's Availability Zones, the ones with IDs `aps1-az1` and `aps1-az3`. AZ names (ap-south-1a, 1b, 1c) map to different IDs in different accounts, so the same name can be a zone without g5 in your account. The Terraform therefore takes AZ IDs (`az_ids`, default `["aps1-az1", "aps1-az3"]`) and creates the private subnets in those zones. That guarantees the GPU Auto Scaling group can launch in either subnet, and the Fargate tasks use the same two AZs. In Sydney, where the demo ran, g5 is offered in `apse2-az1` and `apse2-az2` (checked 2026-10-08), which is the current default.
 
 ## Disaster recovery: ap-south-2 (Hyderabad)
 

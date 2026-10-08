@@ -1,11 +1,11 @@
 # Runbook: Collections Voice-Agent Inference Service
 
-Scope: the Round 2 deployment in ap-south-1 (see the README section "Round 2: AWS deployment"). Names below are the real ones from `infra/`: cluster `collectionsinference`, ECS service `voice-agent`, SNS topic `collectionsinference-alarms`, CloudWatch dashboard `collectionsinference`.
+Scope: the Round 2 deployment in ap-southeast-2 (Sydney; see the README for why not ap-south-1) (see the README section "Round 2: AWS deployment"). Names below are the real ones from `infra/`: cluster `collectionsinference`, ECS service `voice-agent`, SNS topic `collectionsinference-alarms`, CloudWatch dashboard `collectionsinference`.
 
-Set up your shell once (from the repo root, with the `predixion` profile configured for ap-south-1). The commands in this runbook assume Git Bash (or another POSIX shell):
+Set up your shell once (from the repo root, with the `predixion` profile configured for ap-southeast-2). The commands in this runbook assume Git Bash (or another POSIX shell):
 
 ```bash
-export AWS_PROFILE=predixion AWS_REGION=ap-south-1
+export AWS_PROFILE=predixion AWS_REGION=ap-southeast-2
 URL=$(terraform -chdir=infra output -raw url)
 terraform -chdir=infra output dashboard_url      # open this in the browser
 ```
@@ -13,7 +13,7 @@ terraform -chdir=infra output dashboard_url      # open this in the browser
 In PowerShell the equivalent is:
 
 ```powershell
-$env:AWS_PROFILE = "predixion"; $env:AWS_REGION = "ap-south-1"
+$env:AWS_PROFILE = "predixion"; $env:AWS_REGION = "ap-southeast-2"
 $URL = terraform -chdir=infra output -raw url
 terraform -chdir=infra output dashboard_url
 ```
@@ -95,10 +95,10 @@ Symptoms: one or more breakers at 2, "Provider failures by stage" rising, degrad
    If the host never becomes healthy, the bootstrap itself may have failed. Its output goes to `/var/log/collections-bootstrap.log` on the host (and is not in CloudWatch until the compose containers start). Find the instance, then read the EC2 console output or tail the log over SSM:
 
    ```bash
-   ID=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names $(terraform -chdir=infra output -raw gpu_asg) --query 'AutoScalingGroups[0].Instances[0].InstanceId' --output text --profile predixion --region ap-south-1)
-   aws ec2 get-console-output --instance-id $ID --latest --output text --profile predixion --region ap-south-1
-   CMD=$(aws ssm send-command --instance-ids $ID --document-name AWS-RunShellScript --parameters 'commands=["tail -n 100 /var/log/collections-bootstrap.log"]' --query Command.CommandId --output text --profile predixion --region ap-south-1)
-   aws ssm get-command-invocation --command-id $CMD --instance-id $ID --query StandardOutputContent --output text --profile predixion --region ap-south-1
+   ID=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names $(terraform -chdir=infra output -raw gpu_asg) --query 'AutoScalingGroups[0].Instances[0].InstanceId' --output text --profile predixion --region ap-southeast-2)
+   aws ec2 get-console-output --instance-id $ID --latest --output text --profile predixion --region ap-southeast-2
+   CMD=$(aws ssm send-command --instance-ids $ID --document-name AWS-RunShellScript --parameters 'commands=["tail -n 100 /var/log/collections-bootstrap.log"]' --query Command.CommandId --output text --profile predixion --region ap-southeast-2)
+   aws ssm get-command-invocation --command-id $CMD --instance-id $ID --query StandardOutputContent --output text --profile predixion --region ap-southeast-2
    ```
 5. **Do not replay yet.** Wait until every breaker is closed (see Post-incident). While any breaker is open a replay does nothing useful: the bulk endpoint answers 200 with every entry `skipped`, and the single-entry endpoint answers 503.
 
@@ -112,7 +112,7 @@ Symptoms: "Active calls" per task well above 10 and "Tasks: desired vs running" 
 2. **Fargate quota.** A new account can have a low on-demand Fargate vCPU limit.
 
    ```bash
-   aws service-quotas get-service-quota --service-code fargate --quota-code L-3032A538 --profile predixion --region ap-south-1
+   aws service-quotas get-service-quota --service-code fargate --quota-code L-3032A538 --profile predixion --region ap-southeast-2
    ```
 
    Each task is 1 vCPU, so the quota must be at least `max_tasks`, and about double that during a rolling deployment.
@@ -136,8 +136,8 @@ Symptoms: "Active calls" per task well above 10 and "Tasks: desired vs running" 
   - The Deep Learning AMI's root device is `/dev/xvda`, which the launch template assumes:
 
     ```bash
-    AMI=$(aws ssm get-parameter --name /aws/service/deeplearning/ami/x86_64/base-oss-nvidia-driver-gpu-amazon-linux-2023/latest/ami-id --query Parameter.Value --output text --profile predixion --region ap-south-1)
-    aws ec2 describe-images --image-ids $AMI --query 'Images[0].RootDeviceName' --profile predixion --region ap-south-1
+    AMI=$(aws ssm get-parameter --name /aws/service/deeplearning/ami/x86_64/base-oss-nvidia-driver-gpu-amazon-linux-2023/latest/ami-id --query Parameter.Value --output text --profile predixion --region ap-southeast-2)
+    aws ec2 describe-images --image-ids $AMI --query 'Images[0].RootDeviceName' --profile predixion --region ap-southeast-2
     ```
 - To extend the dead-man switch, quote the address so it works in both shells: `terraform -chdir=infra apply "-replace=aws_autoscaling_schedule.gpu_off[0]"`.
 
@@ -182,4 +182,4 @@ Fill in the placeholders when the stack is deployed, and do not leave any in a l
    uv run python scripts/teardown_check.py  # writes teardown/teardown-check-<UTC>.log
    ```
 
-   The check exits 0 only when nothing billable is left. Commit the log. If the only leftover is a Container Insights log group (`/aws/ecs/containerinsights/...`), it was recreated by a late flush after the destroy: wait 5 minutes, run `aws logs delete-log-group --log-group-name <name> --profile predixion --region ap-south-1`, and re-run the check.
+   The check exits 0 only when nothing billable is left. Commit the log. If the only leftover is a Container Insights log group (`/aws/ecs/containerinsights/...`), it was recreated by a late flush after the destroy: wait 5 minutes, run `aws logs delete-log-group --log-group-name <name> --profile predixion --region ap-southeast-2`, and re-run the check.

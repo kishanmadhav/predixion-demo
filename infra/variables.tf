@@ -1,6 +1,6 @@
 variable "region" {
   type    = string
-  default = "ap-south-1"
+  default = "ap-southeast-2"
 }
 
 variable "aws_profile" {
@@ -16,9 +16,9 @@ variable "docker_host" {
 }
 
 variable "az_ids" {
-  description = "AZ IDs (not names: names differ per account). g5 is offered only in aps1-az1 and aps1-az3."
+  description = "AZ IDs (not names: names differ per account). g5 is offered only in apse2-az1 and apse2-az2 (ap-southeast-2); in ap-south-1 use aps1-az1 and aps1-az3."
   type        = list(string)
-  default     = ["aps1-az1", "aps1-az3"]
+  default     = ["apse2-az1", "apse2-az2"]
 }
 
 variable "allowed_cidrs" {
@@ -41,13 +41,14 @@ variable "model_tier" {
 }
 
 variable "task_cpu" {
-  type    = number
-  default = 1024
+  description = "0.5 vCPU: 10 tasks plus the mock provider stay under a new account's 6-vCPU Fargate quota."
+  type        = number
+  default     = 512
 }
 
 variable "task_memory" {
   type    = number
-  default = 2048
+  default = 1024
 }
 
 variable "min_tasks" {
@@ -137,7 +138,7 @@ variable "gpu_instance_type" {
 variable "gpu_max_hours" {
   description = "Dead-man switch: the GPU ASG scales to zero this many hours after it is created."
   type        = number
-  default     = 4
+  default     = 3
 }
 
 variable "compose_version" {

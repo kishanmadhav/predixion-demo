@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     # Persistence: SQLite for one process, DynamoDB when several tasks share state.
     store_backend: Literal["sqlite", "dynamodb"] = "sqlite"
     dynamodb_table: str = "collectionsinference-state"
-    aws_region: str = "ap-south-1"
+    aws_region: str = "ap-southeast-2"
     dynamodb_endpoint_url: str | None = None
 
     # Turn budget: a caller will not wait forever for the agent to speak.

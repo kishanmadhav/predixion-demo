@@ -1,6 +1,6 @@
 """Prove the stack is gone: list anything left in the region that costs money.
 
-  uv run python scripts/teardown_check.py            # profile predixion, ap-south-1
+  uv run python scripts/teardown_check.py            # profile predixion, ap-southeast-2
 Writes teardown/teardown-check-<UTC>.log and exits 0 only when nothing is left.
 """
 
@@ -161,7 +161,7 @@ def run_checks(session: Any) -> dict[str, list[str]]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", default="predixion")
-    parser.add_argument("--region", default="ap-south-1")
+    parser.add_argument("--region", default="ap-southeast-2")
     parser.add_argument("--out-dir", default="teardown")
     args = parser.parse_args(argv)
     session = make_session(args.profile, args.region)
