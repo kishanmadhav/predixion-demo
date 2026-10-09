@@ -31,7 +31,7 @@ variable "allowed_cidrs" {
 }
 
 variable "model_tier" {
-  description = "mock: mock provider on Fargate (cheap infra check). gpu: g5.xlarge with vLLM + Speaches. cpu: c7i.2xlarge with llama.cpp + Speaches (no-GPU-quota fallback, docs/cpu-tier.md)."
+  description = "mock: mock provider on Fargate (cheap infra check). gpu: g5.xlarge with vLLM + Speaches. cpu: m7a.2xlarge with llama.cpp + Speaches (no-GPU-quota fallback, docs/cpu-tier.md)."
   type        = string
   default     = "mock"
   validation {
@@ -84,7 +84,7 @@ variable "failure_rate" {
 }
 
 variable "turn_deadline_s" {
-  description = "Whole-turn deadline. null: 20 s (mock, gpu) or 30 s (cpu, slower models)."
+  description = "Whole-turn deadline. null: 20 s (mock, gpu) or 35 s (cpu, slower models)."
   type        = number
   default     = null
 }
@@ -143,9 +143,9 @@ variable "model_host_max_hours" {
 }
 
 variable "cpu_instance_type" {
-  description = "cpu tier host. 8 vCPUs fits a new account's 8-vCPU standard on-demand quota."
+  description = "cpu tier host. 8 vCPUs fits a new account's 8-vCPU standard on-demand quota; m7a has one thread per core, so 8 vCPUs are 8 real cores (c7i.2xlarge is 4 cores x 2 threads)."
   type        = string
-  default     = "c7i.2xlarge"
+  default     = "m7a.2xlarge"
 }
 
 variable "llama_image" {
@@ -177,8 +177,9 @@ variable "cpu_llm_parallel" {
 }
 
 variable "cpu_stt_model" {
-  type    = string
-  default = "Systran/faster-whisper-base"
+  description = "tiny.en: about 3x the CPU throughput of base, accurate on the demo utterances (measured 2026-10-09)."
+  type        = string
+  default     = "Systran/faster-whisper-tiny.en"
 }
 
 variable "cpu_speaches_image" {

@@ -21,15 +21,15 @@ A live load test against real open-weight STT/LLM/TTS models on a GPU (g5.xlarge
 
 | | `gpu` tier (designed) | `cpu` tier (deployed) |
 |---|---|---|
-| Host | g5.xlarge (A10G 24 GB), Deep Learning AMI | c7i.2xlarge (8 vCPU, 16 GB), Amazon Linux 2023, $0.466/h |
+| Host | g5.xlarge (A10G 24 GB), Deep Learning AMI | m7a.2xlarge (8 vCPU = 8 physical AMD cores, 32 GB), Amazon Linux 2023, $0.580/h |
 | LLM | vLLM, Qwen2.5-7B-Instruct-AWQ | llama.cpp server, Qwen2.5-1.5B-Instruct Q4_K_M (GGUF), 4 threads, 4 parallel slots |
-| STT | Speaches CUDA, faster-whisper-small (fp16) | Speaches CPU, faster-whisper-base (int8) |
+| STT | Speaches CUDA, faster-whisper-small (fp16) | Speaches CPU, faster-whisper-tiny.en (int8), 2 workers |
 | TTS | Kokoro-82M ONNX | Kokoro-82M ONNX (same) |
-| LLM reply cap | 80 tokens | 48 tokens |
-| Stage timeouts (STT / LLM / TTS) | 5 / 8 / 5 s, turn deadline 20 s | 8 / 15 / 8 s, turn deadline 30 s |
+| LLM reply cap | 80 tokens | 40 tokens |
+| Stage timeouts (STT / LLM / TTS) | 5 / 8 / 5 s, turn deadline 20 s | 8 / 15 / 12 s, turn deadline 35 s |
 
 The quota fit:
-- a c7i.2xlarge is 8 vCPUs, exactly the account's standard on-demand quota (`L-1216C47A` = 8);
+- an m7a.2xlarge is 8 vCPUs, exactly the account's standard on-demand quota (`L-1216C47A` = 8). m7a runs one thread per core, so those are 8 real cores; a c7i.2xlarge is 4 cores with 2 threads each, for about $0.11/h less;
 - the voice-agent tasks run on Fargate, which has its own 6-vCPU quota.
 
 ## What is unchanged
@@ -43,13 +43,32 @@ Everything the brief evaluates apart from the hardware:
 
 ## Effect on the load test
 
-A CPU serves far fewer tokens per second than an A10G, so the campaign is scaled down, not the mechanisms. Throughput was not measured before the demo. The plan:
+A CPU serves far fewer requests per second than an A10G, so the campaign is scaled down; the mechanisms stay the same.
 
-- **Traffic profile.** The default `baseline:10:10,spike:15:50,cooldown:10:10` becomes `baseline:10:4,spike:15:20,cooldown:10:4`.
-  - At the spike that is about 1 turn per second at the model host.
-  - At about 75 s per call (3 turns, 30 s apart), Little's law gives about 5 concurrent calls at baseline and about 25 at peak.
-- **Autoscaling target.** `target_active_calls = 4`, so 25 calls means about 7 tasks. The service still scales from the 2-task floor to well above it, which is what the demo has to show. Only the absolute numbers are smaller.
-- **Rehearsal first.** A short rehearsal (`smoke:3:12`) measures the per-stage p99. If the host saturates, the spike rate is lowered (for example to 12 calls/min with `target_active_calls = 3`), and the stage timeouts and `baseline_p99_ms` are set from what was measured. The measured numbers go into the README cost and results sections.
+**Measured locally, 2026-10-09.** The same compose stack ran in Docker Desktop on a 16-thread laptop. Each figure is wall time for N parallel requests.
+
+| Stage | 1 request | 8 in parallel | Throughput |
+|---|---|---|---|
+| STT, faster-whisper-base, 1 worker | 0.9 s | 6.9 s | ~1.2/s, serialized |
+| STT, faster-whisper-tiny.en, 2-4 workers | 0.5 s | 2.3 s | ~3.5/s |
+| LLM, Qwen2.5-1.5B Q4_K_M, 4 slots, 48 tokens | 1.2 s | 3.9 s | ~2/s |
+| TTS, Kokoro-82M ONNX, one sentence | 1.3 s | 5.6 s | ~1.4/s |
+
+**What the measurements changed:**
+- **STT model.** faster-whisper-base with the default single worker was the bottleneck. A 3-minute local run at 20 calls/min degraded 61% of turns: STT timeouts opened its breaker. Switching to tiny.en with 2 workers fixed this. It transcribes the demo utterances exactly.
+- **Model installation.** This Speaches release ignores `PRELOAD_MODELS`. Models are now installed through its API by a one-shot `speaches-models` container, which also warms the TTS model. Without it, every STT and TTS call returned 404. The GPU compose file had the same bug and gets the same fix.
+- **Traffic profile.** TTS is now the slowest stage. A turn runs STT, then LLM, then TTS. Local 3-minute runs with 20% injected failures:
+
+  | Spike rate | Turns | Degraded | HTTP failures | p50 / p99 | Bottleneck |
+  |---|---|---|---|---|---|
+  | 12 calls/min, TTS timeout 8 s | 111 | 35% | 0 | 16.1 / 30.3 s | TTS queues past its timeout; its breaker opens |
+  | 8 calls/min, TTS timeout 12 s, 40-token replies | 84 | 6% | 0 | 10.7 / 37.1 s | none: degraded turns are the injected failures that outlast retries |
+
+  - The default `baseline:10:10,spike:15:50,cooldown:10:10` becomes `baseline:10:3,spike:15:8,cooldown:10:3`.
+  - A call lasts about 90 s (two 30 s gaps plus three slow turns). By Little's law that is about 4-5 concurrent calls at baseline and about 12 at the peak.
+- **Autoscaling target.** `target_active_calls = 2`, so 12 calls means about 6 tasks. The service scales from the 2-task floor to well above it, which is what the demo has to show; only the absolute numbers are smaller.
+- **Rehearsal on AWS first.** A short run (`smoke:3:8`) checks these numbers on the m7a host. The stage timeouts and `baseline_p99_ms` are then set from what was measured, and the measured results go into the README.
+- **Latency is the cost of CPU inference.** Uncontended, the three stages take about 0.5 + 1.2 + 1.3 s. Under load, the p50 includes queueing behind other calls, retries after injected failures, and injected hangs that wait out a stage timeout.
 
 ## What this does not show
 

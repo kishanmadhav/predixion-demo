@@ -223,7 +223,7 @@ The Round 1 service, deployed to a fresh AWS account in ap-southeast-2 as a prod
 
 **Region.** The brief asks for ap-south-1 (Mumbai). The deployment account sits in an AWS Organization whose region-restriction SCP allows workloads only in ap-southeast-2 (Sydney), and it could not be edited, so the stack runs in Sydney. Nothing in the code is tied to a region: `terraform apply -var region=ap-south-1 -var 'az_ids=["aps1-az1","aps1-az3"]'` deploys to Mumbai unchanged. [`docs/ap-south-1-notes.md`](docs/ap-south-1-notes.md) explains why Mumbai is the production choice for this workload.
 
-**Models on CPU, not GPU (approved deviation).** The design runs the models on a g5.xlarge. AWS declined the account's GPU quota (new accounts start at 0, and an appeal is pending), so the deployed demo uses `model_tier = "cpu"`: smaller open-weight models (Qwen2.5-1.5B on llama.cpp, faster-whisper-base, Kokoro) on a c7i.2xlarge, behind the same chaos proxy, with a scaled-down campaign. Everything else is identical, and `model_tier = "gpu"` deploys the GPU design unchanged. Details, and what the CPU run does not show: [`docs/cpu-tier.md`](docs/cpu-tier.md).
+**Models on CPU, not GPU (approved deviation).** The design runs the models on a g5.xlarge. AWS declined the account's GPU quota (new accounts start at 0, and an appeal is pending), so the deployed demo uses `model_tier = "cpu"`: smaller open-weight models (Qwen2.5-1.5B on llama.cpp, faster-whisper-tiny.en, Kokoro) on an m7a.2xlarge, behind the same chaos proxy, with a scaled-down campaign. Everything else is identical, and `model_tier = "gpu"` deploys the GPU design unchanged. Details, and what the CPU run does not show: [`docs/cpu-tier.md`](docs/cpu-tier.md).
 
 Other documents: [`RUNBOOK.md`](RUNBOOK.md) (what to do when the latency alarm fires), [`docs/demo-shot-list.md`](docs/demo-shot-list.md) (5-minute recording plan with commands), [`docs/ap-south-1-notes.md`](docs/ap-south-1-notes.md) (data residency, latency, AZs, DR), and the design spec [`docs/superpowers/specs/2026-10-07-round2-aws-design.md`](docs/superpowers/specs/2026-10-07-round2-aws-design.md).
 
@@ -242,7 +242,7 @@ Other documents: [`RUNBOOK.md`](RUNBOOK.md) (what to do when the latency alarm f
                                   chaos-proxy :8080  (20% injected failures, outage switch) ──┐
                                   vLLM        :8000  Qwen2.5-7B-Instruct-AWQ  ◄───────────────┤
                                   Speaches    :8000  faster-whisper (STT) + Kokoro (TTS) ◄────┘
-                              cpu tier: c7i.2xlarge, AL2023, llama.cpp (Qwen2.5-1.5B Q4_K_M) in place of vLLM
+                              cpu tier: m7a.2xlarge, AL2023, llama.cpp (Qwen2.5-1.5B Q4_K_M) in place of vLLM
  NAT gateway (1) for egress: image + model downloads; S3/DynamoDB gateway endpoints bypass it
 ```
 
@@ -252,7 +252,7 @@ With `model_tier = "mock"` the internal NLB fronts the Round 1 mock provider on 
 
 ### Prerequisites
 
-- An AWS account. This one has no credits and a $20 hard spending cap.
+- An AWS account. This one has no credits and a $10 hard spending cap.
 - If the account sits in an AWS Organization, the organization's SCP must allow EC2, ECS, ELB, DynamoDB, CloudWatch, Logs, ECR, SSM and Auto Scaling in ap-southeast-2. Otherwise `apply` fails with access-denied errors that name no policy.
 - For `model_tier = "cpu"`: 8 vCPUs of "Running On-Demand Standard" instances (`L-1216C47A`; new accounts get 8).
 - For `model_tier = "gpu"`: a quota of at least 4 vCPUs for "Running On-Demand G and VT instances" (quota code `L-DB2E81BA`). New accounts start at 0. Request it on day one, because approval can take a day or more:
@@ -273,18 +273,18 @@ aws configure --profile predixion          # access key, secret, default region 
 aws sts get-caller-identity --profile predixion
 ```
 
-**2. A budget.** A $20 monthly cost budget, with email alerts at $5, $10 and $15 of actual spend and at $18 forecast. It is a one-time CLI step, not part of the Terraform. Budgets is a global service served from us-east-1, and the email address is a placeholder.
+**2. A budget.** A $10 monthly cost budget, with email alerts at $3, $5 and $7 of actual spend and at $9 forecast. It is a one-time CLI step, not part of the Terraform. Budgets is a global service served from us-east-1, and the email address is a placeholder.
 
 ```bash
 aws budgets create-budget --account-id <ACCOUNT_ID> --profile predixion --region us-east-1 \
-  --budget '{"BudgetName":"predixion-20usd-cap","BudgetLimit":{"Amount":"20","Unit":"USD"},"TimeUnit":"MONTHLY","BudgetType":"COST"}'
-for t in 5 10 15; do
-  aws budgets create-notification --account-id <ACCOUNT_ID> --budget-name predixion-20usd-cap --profile predixion --region us-east-1 \
+  --budget '{"BudgetName":"predixion-10usd-cap","BudgetLimit":{"Amount":"10","Unit":"USD"},"TimeUnit":"MONTHLY","BudgetType":"COST"}'
+for t in 3 5 7; do
+  aws budgets create-notification --account-id <ACCOUNT_ID> --budget-name predixion-10usd-cap --profile predixion --region us-east-1 \
     --notification NotificationType=ACTUAL,ComparisonOperator=GREATER_THAN,Threshold=$t,ThresholdType=ABSOLUTE_VALUE \
     --subscribers SubscriptionType=EMAIL,Address=you@example.com
 done
-aws budgets create-notification --account-id <ACCOUNT_ID> --budget-name predixion-20usd-cap --profile predixion --region us-east-1 \
-  --notification NotificationType=FORECASTED,ComparisonOperator=GREATER_THAN,Threshold=18,ThresholdType=ABSOLUTE_VALUE \
+aws budgets create-notification --account-id <ACCOUNT_ID> --budget-name predixion-10usd-cap --profile predixion --region us-east-1 \
+  --notification NotificationType=FORECASTED,ComparisonOperator=GREATER_THAN,Threshold=9,ThresholdType=ABSOLUTE_VALUE \
   --subscribers SubscriptionType=EMAIL,Address=you@example.com
 ```
 
@@ -301,14 +301,14 @@ Set `allowed_cidrs` to your own public IP (`curl -s https://checkip.amazonaws.co
 | Variable | Default | Meaning |
 |---|---|---|
 | `allowed_cidrs` | none (required) | Who can reach the ALB |
-| `model_tier` | `mock` | `mock` (Fargate mock provider), `gpu` (g5.xlarge with vLLM and Speaches) or `cpu` (c7i.2xlarge with llama.cpp and Speaches, see [`docs/cpu-tier.md`](docs/cpu-tier.md)) |
+| `model_tier` | `mock` | `mock` (Fargate mock provider), `gpu` (g5.xlarge with vLLM and Speaches) or `cpu` (m7a.2xlarge with llama.cpp and Speaches, see [`docs/cpu-tier.md`](docs/cpu-tier.md)) |
 | `min_tasks` / `max_tasks` | 2 / 10 | Fargate task floor and ceiling |
 | `target_active_calls` | 10 | Autoscaling target, active calls per task |
 | `campaign_prewarm` | none | `{ start, end, min_tasks }`, `at(...)` or `cron(...)` in UTC. Use `min_tasks = 3`: pre-warm the floor, and let ActiveCalls target tracking scale the spike |
 | `failure_rate` | 0.2 | Injected provider failure rate (changing it replaces the model host) |
 | `baseline_p99_ms` | 3000 | The latency alarm fires above 3x this |
 | `model_host_max_hours` | 3 | Dead-man switch: the model host scales to zero this long after creation |
-| `stage_timeouts_s` / `turn_deadline_s` | per tier | 5/8/5 s and 20 s for `mock` and `gpu`; 8/15/8 s and 30 s for `cpu` |
+| `stage_timeouts_s` / `turn_deadline_s` | per tier | 5/8/5 s and 20 s for `mock` and `gpu`; 8/15/12 s and 35 s for `cpu` |
 | `docker_host` | Windows named pipe | Docker daemon address |
 
 ### Deploy
@@ -335,7 +335,7 @@ uv run voice-agent campaign --url $URL --profile smoke:1:10 --turns 2 --gap 5
 
 # 5. Switch to the model host. GPU: model_tier = "gpu" in infra/terraform.tfvars
 #    (docker manifest inspect vllm/vllm-openai:v0.31.0 first: the image tag must exist).
-#    CPU (what the demo ran, docs/cpu-tier.md): model_tier = "cpu" and target_active_calls = 4.
+#    CPU (what the demo ran, docs/cpu-tier.md): model_tier = "cpu" and target_active_calls = 2.
 terraform -chdir=infra apply
 # The host downloads its images and model weights before it is ready: allow 15-20 minutes (gpu,
 # about 18 GB) or about 10 minutes (cpu, about 6 GB) before the "Model tier health (NLB healthy
@@ -347,8 +347,8 @@ terraform -chdir=infra apply
 mkdir -p results
 uv run voice-agent campaign --url $URL --json-out results/campaign.json
 #    CPU: rehearse first to measure per-stage latency, then run the scaled-down profile.
-uv run voice-agent campaign --url $URL --profile smoke:3:12
-uv run voice-agent campaign --url $URL --profile baseline:10:4,spike:15:20,cooldown:10:4 --json-out results/campaign.json
+uv run voice-agent campaign --url $URL --profile smoke:3:8
+uv run voice-agent campaign --url $URL --profile baseline:10:3,spike:15:8,cooldown:10:3 --json-out results/campaign.json
 
 # 7. While it runs (during the spike): chaos, then replay
 uv run python scripts/chaos.py outage --stage llm --seconds 60
@@ -375,11 +375,11 @@ Notes:
 
 ### Cost
 
-Estimated, not measured. ap-southeast-2 on-demand prices from the AWS Price List API, checked on 2026-10-08 and 2026-10-09. Both plans fit a **$20 hard cap** with no credits. The stack is up for about 5 hours in total: about 1 hour on the mock tier to check the infrastructure, then one model-host session in which the host runs about 3 hours and boots once. Fargate averages 5 tasks of 0.5 vCPU / 1 GB.
+Estimated, not measured. ap-southeast-2 on-demand prices from the AWS Price List API, checked on 2026-10-08 and 2026-10-09. Both plans fit the account's **$10 hard cap** with no credits. The stack is up for about 5 hours in total: about 1 hour on the mock tier to check the infrastructure, then one model-host session in which the host runs about 3 hours and boots once. Fargate averages 5 tasks of 0.5 vCPU / 1 GB.
 
 | Item | Unit price | Usage | CPU tier (deployed) | GPU tier (designed) |
 |---|---|---|---|---|
-| Model host | c7i.2xlarge $0.466/h; g5.xlarge $1.308/h | 3 h | $1.40 | $3.92 |
+| Model host | m7a.2xlarge $0.580/h; g5.xlarge $1.308/h | 3 h | $1.74 | $3.92 |
 | NAT gateway, hourly | $0.059/h | 5 h | $0.30 | $0.30 |
 | NAT gateway, data | $0.059/GB | images and model weights, 1 boot: ~6 GB (cpu), ~20 GB (gpu) | $0.35 | $1.18 |
 | Fargate 0.5 vCPU / 1 GB | $0.0296/task-h ($0.04856/vCPU-h + $0.00532/GB-h) | ~25 task-h | $0.74 | $0.74 |
@@ -388,20 +388,20 @@ Estimated, not measured. ap-southeast-2 on-demand prices from the AWS Price List
 | Public IPv4 (NAT EIP + 2 ALB) | $0.005/h each | 5 h | $0.08 | $0.08 |
 | EBS gp3 (host root: 40 GB cpu, 100 GB gpu) | $0.096/GB-month | 3 h | $0.02 | $0.04 |
 | DynamoDB on-demand, ECR, data out, Budgets | | tiny | ~$0.05 | ~$0.05 |
-| **Subtotal** | | | **~$4.30** | **~$7.70** |
-| **With 30% contingency** | | | **~$5.60** | **~$10** |
+| **Subtotal** | | | **~$4.65** | **~$7.70** |
+| **With 30% contingency** | | | **~$6.05** | **~$10** |
 
-The model host and the NAT data dominate. Each extra host hour costs about $0.50 (cpu) or $1.40 (gpu), counting EBS and NAT. The guards are:
+The model host and the NAT data dominate. Each extra host hour costs about $0.62 (cpu) or $1.40 (gpu), counting EBS and NAT. The guards are:
 - destroying the stack after every session;
 - the dead-man switch on the model host (`model_host_max_hours`, default 3);
-- an AWS Budget alerting at $5, $10 and $15 actual and at $18 forecast;
+- an AWS Budget alerting at $3, $5 and $7 actual and at $9 forecast;
 - the organization's Budgets spend-limit SCP.
 
 Measured numbers from Cost Explorer and CloudWatch will replace these estimates after the demo run.
 
 | | Estimate (CPU tier) | Measured (to be filled after the demo) |
 |---|---|---|
-| Total | ~$4.30 (~$5.60 with contingency) | |
+| Total | ~$4.65 (~$6.05 with contingency) | |
 | Model host hours | 3 | |
 | NAT data | ~6 GB | |
 

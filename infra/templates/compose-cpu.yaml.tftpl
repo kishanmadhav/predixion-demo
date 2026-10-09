@@ -1,4 +1,4 @@
-# CPU fallback (no GPU quota): 8 vCPUs shared by three containers.
+# CPU fallback (no GPU quota): 8 cores shared by three containers.
 # llama.cpp gets ${llm_threads} threads and ${llm_parallel} parallel slots (continuous batching);
 # Speaches (faster-whisper int8 + Kokoro ONNX) and the chaos proxy share the rest.
 services:
@@ -38,11 +38,11 @@ services:
     image: ${speaches_image}
     restart: unless-stopped
     environment:
-      PRELOAD_MODELS: '["${stt_model}","${tts_model}"]'
-      STT_MODEL_TTL: "-1"
-      TTS_MODEL_TTL: "-1"
+      WHISPER__TTL: "-1" # keep the STT model loaded (default: unload after 5 min idle)
       WHISPER__INFERENCE_DEVICE: cpu
       WHISPER__COMPUTE_TYPE: int8
+      WHISPER__NUM_WORKERS: "2" # default 1 serializes transcriptions
+      WHISPER__CPU_THREADS: "2"
     volumes:
       - /opt/hf/speaches:/home/ubuntu/.cache/huggingface/hub
     healthcheck:
@@ -54,6 +54,25 @@ services:
     logging:
       driver: awslogs
       options: { awslogs-group: "${log_group}", awslogs-region: "${region}", awslogs-stream: speaches }
+
+  # Speaches does not preload models: install them through its API, then load the TTS model
+  # with one short request. The chaos proxy (and so the NLB health check) waits for this.
+  speaches-models:
+    image: ${speaches_image}
+    restart: "no"
+    depends_on:
+      speaches: { condition: service_healthy }
+    entrypoint:
+      - sh
+      - -c
+      - >-
+        curl -fsS -X POST http://speaches:8000/v1/models/${stt_model} &&
+        curl -fsS -X POST http://speaches:8000/v1/models/${tts_model} &&
+        curl -fsS -o /dev/null http://speaches:8000/v1/audio/speech -H 'content-type: application/json'
+        -d '{"model":"${tts_model}","voice":"af_heart","input":"Ready.","response_format":"wav"}'
+    logging:
+      driver: awslogs
+      options: { awslogs-group: "${log_group}", awslogs-region: "${region}", awslogs-stream: speaches-models }
 
   chaos-proxy:
     image: ${proxy_image}
@@ -67,7 +86,7 @@ services:
       - "8080:8080"
     depends_on:
       llama: { condition: service_started }
-      speaches: { condition: service_started }
+      speaches-models: { condition: service_completed_successfully }
     logging:
       driver: awslogs
       options: { awslogs-group: "${log_group}", awslogs-region: "${region}", awslogs-stream: chaos-proxy }

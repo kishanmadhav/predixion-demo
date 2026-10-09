@@ -1,7 +1,7 @@
 # The model host: one EC2 instance in an ASG (min = max = 1) running the models and the
 # chaos proxy under docker compose, behind the internal NLB.
 #   gpu: g5.xlarge, Deep Learning AMI, vLLM (Qwen2.5-7B-AWQ) + Speaches CUDA.
-#   cpu: c7i.2xlarge, Amazon Linux 2023, llama.cpp (Qwen2.5-1.5B Q4_K_M) + Speaches CPU.
+#   cpu: m7a.2xlarge, Amazon Linux 2023, llama.cpp (Qwen2.5-1.5B Q4_K_M) + Speaches CPU.
 #        The fallback when the account has no GPU quota; see docs/cpu-tier.md.
 
 data "aws_ssm_parameter" "dlami" {
@@ -93,7 +93,7 @@ resource "aws_autoscaling_group" "model_host" {
   min_size                  = 1
   max_size                  = 1
   desired_capacity          = 1
-  vpc_zone_identifier       = aws_subnet.private[*].id # both subnets are in AZs that offer g5 and c7i
+  vpc_zone_identifier       = aws_subnet.private[*].id # both subnets are in AZs that offer g5 and m7a
   target_group_arns         = [aws_lb_target_group.models.arn]
   health_check_type         = "EC2" # don't kill the host while models download and load
   health_check_grace_period = 1200

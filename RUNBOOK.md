@@ -175,7 +175,7 @@ Fill in the placeholders when the stack is deployed, and do not leave any in a l
    | p99 `TurnLatency` at peak | under the 3x baseline line | |
 
 4. **Write down the cause and the one change that would have prevented it** (alarm threshold, quota, pre-warm, timeout).
-5. **Teardown reminder.** If this was a demo or test stack, tear it down. The model host alone costs $0.466 per hour (cpu, c7i.2xlarge) or $1.308 per hour (gpu, g5.xlarge) on-demand in ap-southeast-2 and keeps running until you do:
+5. **Teardown reminder.** If this was a demo or test stack, tear it down. The model host alone costs $0.580 per hour (cpu, m7a.2xlarge) or $1.308 per hour (gpu, g5.xlarge) on-demand in ap-southeast-2 and keeps running until you do:
 
    ```bash
    terraform -chdir=infra destroy           # Docker Desktop must be running

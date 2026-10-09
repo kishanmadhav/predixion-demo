@@ -40,10 +40,10 @@ locals {
   default_stage_timeouts = {
     mock = { stt = 5, llm = 8, tts = 5 }
     gpu  = { stt = 5, llm = 8, tts = 5 }
-    cpu  = { stt = 8, llm = 15, tts = 8 } # CPU models are slower; re-set from measured p99
+    cpu  = { stt = 8, llm = 15, tts = 12 } # CPU models are slower; TTS queues first (measured 2026-10-09)
   }
   stage_timeouts  = coalesce(var.stage_timeouts_s, local.default_stage_timeouts[var.model_tier])
-  turn_deadline_s = coalesce(var.turn_deadline_s, var.model_tier == "cpu" ? 30 : 20)
+  turn_deadline_s = coalesce(var.turn_deadline_s, var.model_tier == "cpu" ? 35 : 20)
   app_env = {
     HOST             = "0.0.0.0"
     PORT             = "8080"
@@ -63,7 +63,7 @@ locals {
     LLM_BASE_URL     = local.provider_url
     LLM_MODEL        = local.llm_model
     LLM_TIMEOUT_S    = tostring(local.stage_timeouts.llm)
-    LLM_MAX_TOKENS   = var.model_tier == "cpu" ? "48" : "80" # short replies: a voice turn is a sentence or two, and fewer tokens means lower latency
+    LLM_MAX_TOKENS   = var.model_tier == "cpu" ? "40" : "80" # short replies: a voice turn is a sentence or two, and fewer tokens means lower latency
     TTS_PROVIDER     = local.provider_kind
     TTS_BASE_URL     = local.provider_url
     TTS_MODEL        = var.tts_model

@@ -8,7 +8,7 @@ Bring the stack up and warm it first. These are not filmed except the `terraform
 
 ```bash
 export AWS_PROFILE=predixion
-# terraform.tfvars: model_tier = "cpu" (or "gpu" with GPU quota; see docs/cpu-tier.md), target_active_calls = 4, allowed_cidrs = ["<your-ip>/32"],
+# terraform.tfvars: model_tier = "cpu" (or "gpu" with GPU quota; see docs/cpu-tier.md), target_active_calls = 2, allowed_cidrs = ["<your-ip>/32"],
 #   campaign_prewarm = { ..., min_tasks = 3 }   # pre-warm the floor; autoscaling must add the rest during the spike
 terraform -chdir=infra apply
 URL=$(terraform -chdir=infra output -raw url)     # PowerShell: $URL = terraform -chdir=infra output -raw url
@@ -25,7 +25,7 @@ Open the dashboard in one window and a terminal in another. Set the dashboard to
 | Time | Shot | What to say / point at |
 |---|---|---|
 | 0:00-0:30 | Architecture slide (the README diagram), then the tail of `terraform apply` output | One apply builds everything: network, ECS, ALB, DynamoDB, the model host, dashboard and alarms. Show the outputs: `url`, `dashboard_url` |
-| 0:30-1:15 | Dashboard at baseline | Flat at the pre-warmed floor of 3 tasks (2 without the pre-warm), "Active calls" well under target (gpu: about 5 per task against 10; cpu: about 2 per task against 4), p50/p90/p99 flat, HTTP 5xx 0, a steady 20% of provider attempts failing but few degraded turns (retries absorb them) |
+| 0:30-1:15 | Dashboard at baseline | Flat at the pre-warmed floor of 3 tasks (2 without the pre-warm), "Active calls" well under target (gpu: about 5 per task against 10; cpu: about 2 per task against 2, rising at the spike), p50/p90/p99 flat, HTTP 5xx 0, a steady 20% of provider attempts failing but few degraded turns (retries absorb them) |
 | 1:15-2:30 | Spike phase | "Active calls" climbs above target, and ActiveCalls target tracking adds tasks above the pre-warmed floor of 3: "Tasks: desired vs running" steps up (desired first, then running). This scale-out is the point of the shot, so the pre-warm must not already cover the peak, latency percentiles hold. Show one row of "Autoscaling and task events" |
 | 2:30-3:30 | LLM outage | Breaker widget goes to 2 for `llm`, "Error rate (%)" degraded % rises while HTTP 5xx stays 0, "Dead-letter queue" pending climbs |
 | 3:30-4:15 | Recovery and replay | Breaker widget back to 0; replay; pending drops and "resolved by replay" rises |
@@ -40,7 +40,7 @@ mkdir -p results
 # gpu tier:
 uv run voice-agent campaign --url $URL --json-out results/campaign.json | tee results/campaign.txt
 # cpu tier (docs/cpu-tier.md): the same shape at a CPU-sized rate
-uv run voice-agent campaign --url $URL --profile baseline:10:4,spike:15:20,cooldown:10:4 --json-out results/campaign.json | tee results/campaign.txt
+uv run voice-agent campaign --url $URL --profile baseline:10:3,spike:15:8,cooldown:10:3 --json-out results/campaign.json | tee results/campaign.txt
 ```
 
 **0:00-0:30.** Slide: the diagram in the README section "Round 2: AWS deployment". Terminal: show the end of a previous apply, or run `terraform -chdir=infra output`.
