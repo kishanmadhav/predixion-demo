@@ -1,0 +1,28 @@
+14:49:28 UTC (20:19:28 IST)
+{"status":"ok","breakers":{"stt":{"state":"closed","failure_rate":0.16129032258064516,"calls_in_window":31},"llm":{"state":"closed","failure_rate":0.35135135135135137,"calls_in_window":37},"tts":{"state":"closed","failure_rate":0.14285714285714285,"calls_in_window":28}}}
+{"counts":{"pending":40,"replaying":0,"resolved":0},"items":[{"id":1,"call_id":"call-61486abe28","turn_id":"t0","reason":"stage_failed","failed_stage":"stt","error_kind":"malformed","status":"pending","replay_count":0,"created_at":"2026-10-09T14:23:09.259+00:00"}]}
+<html>
+<head><title>504 Gateway Time-out</title></head>
+<body>
+<center><h1>504 Gateway Time-out</h1></center>
+</body>
+</html>
+
+{"results":[{"id":11,"status":"skipped","error":"circuit open for stt; retry after the cool-down","error_kind":"circuit_open","result":null,"attempts":[]},{"id":12,"status":"skipped","error":"provider still unhealthy","error_kind":null,"result":null,"attempts":[]},{"id":13,"status":"skipped","error":"provider still unhealthy","error_kind":null,"result":null,"attempts":[]},{"id":14,"status":"skippe
+<html>
+<head><title>504 Gateway Time-out</title></head>
+<body>
+<center><h1>504 Gateway Time-out</h1></center>
+</body>
+</html>
+
+{"results":[{"id":12,"status":"resolved","error":null,"error_kind":null,"result":{"transcript":"I lost my job. I need more time.","reply_text":"I'm here to help. We can discuss your options and connect you with a human agent if you need assistance.","audio_bytes":280620},"attempts":[{"stage":"stt","attempt":1,"outcome":"ok","duration_ms":5774.76,"backoff_ms":0.0,"error_kind":null,"status_code":nul
+<html>
+<head><title>504 Gateway Time-out</title></head>
+<body>
+<center><h1>504 Gateway Time-out</h1></center>
+</body>
+</html>
+
+{"results":[{"id":46,"status":"resolved","error":null,"error_kind":null,"result":{"transcript":"Who is this calling?","reply_text":"This is a collections assistant on behalf of a lender. We are here to assist you and help resolve any issues with your account.","audio_bytes":342060},"attempts":[{"stage":"stt","attempt":1,"outcome":"ok","duration_ms":3309.13,"backoff_ms":0.0,"error_kind":null,"statu
+{"counts":{"pending":0,"replaying":0,"resolved":64},"items":[{"id":1,"call_id":"call-61486abe28","turn_id":"t0","reason":"stage_failed","failed_stage":"stt","error_kind":"malformed","status":"resolved","replay_count":1,"created_at":"2026-10-09T14:23:09.259+00:00"}]}

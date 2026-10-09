@@ -20,7 +20,7 @@ A local mock provider stands in for STT/LLM/TTS. It adds realistic latency, fail
 | Runs from documented setup | [§ Quick start](#quick-start): `uv sync`, then 3 commands; or `docker compose up --build` |
 | Design spec | [`docs/superpowers/specs/…-design.md`](docs/superpowers/specs/2026-10-05-resilient-voice-agent-design.md) |
 | **Round 2:** AWS deployment, autoscaling, dashboard, teardown | [§ Round 2: AWS deployment (ap-southeast-2)](#round-2-aws-deployment-ap-southeast-2), [`infra/`](infra) |
-| **Round 2:** runbook, demo shot list, region notes | [`RUNBOOK.md`](RUNBOOK.md), [`docs/demo-shot-list.md`](docs/demo-shot-list.md), [`docs/ap-south-1-notes.md`](docs/ap-south-1-notes.md) |
+| **Round 2:** live run results, runbook, demo shot list, region notes | [`docs/round2-results.md`](docs/round2-results.md), [`RUNBOOK.md`](RUNBOOK.md), [`docs/demo-shot-list.md`](docs/demo-shot-list.md), [`docs/ap-south-1-notes.md`](docs/ap-south-1-notes.md) |
 
 ## Quick start
 
@@ -426,6 +426,8 @@ Measured numbers from Cost Explorer and CloudWatch will replace these estimates 
 | Runbook | [`RUNBOOK.md`](RUNBOOK.md) |
 | 5-minute demo shot list | [`docs/demo-shot-list.md`](docs/demo-shot-list.md) |
 | Region notes | [`docs/ap-south-1-notes.md`](docs/ap-south-1-notes.md) |
-| Cost write-up | This section holds the estimate. The one-page PDF (Round 1 cost, and the swap-the-mock paragraph) is sent separately and is not in the repo, and Round 2's measured numbers are added after the demo |
+| Live run results: campaign table, autoscaling, outage and replay, lessons | [`docs/round2-results.md`](docs/round2-results.md), raw outputs and dashboard renders in [`docs/round2-evidence/`](docs/round2-evidence) |
+| CPU-tier deviation (approved) | [`docs/cpu-tier.md`](docs/cpu-tier.md) |
+| Cost write-up | This section holds the estimate. The one-page PDF (Round 1 cost, and the swap-the-mock paragraph) is sent separately and is not in the repo, and Round 2's measured spend is in the Cost section, from `uv run python -m cost.measured` |
 | Teardown proof | `teardown/*.log`, written by `teardown_check.py` and committed after the destroy |
 | Reimbursement | The billing PDF is supplied separately by the account owner |

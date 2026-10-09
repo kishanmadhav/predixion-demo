@@ -141,6 +141,11 @@ Symptoms: "Active calls" per task well above 10 and "Tasks: desired vs running" 
     ```
 - To extend the dead-man switch, quote the address so it works in both shells: `terraform -chdir=infra apply "-replace=aws_autoscaling_schedule.model_host_off[0]"`.
 
+## Operator gotchas (from the 2026-10-09 run)
+
+- **The ALB times out for you, but the dashboard looks healthy.** Your public IP has probably changed, and the ALB only admits `allowed_cidrs`. Compare `curl -s https://checkip.amazonaws.com` with `allowed_cidrs` in `infra/terraform.tfvars`, update it, and apply. This does not affect callers.
+- **On a brand-new account, the first apply fails on the model host ASG** with "Access denied when attempting to assume role ... AWSServiceRoleForAutoScaling". The service-linked role was created moments earlier and is still propagating, and the ASG usually launches on AWS's own retry. Run `terraform -chdir=infra untaint 'aws_autoscaling_group.model_host[0]'`, then apply again.
+
 ## Escalation
 
 Fill in the placeholders when the stack is deployed, and do not leave any in a live campaign.
@@ -152,14 +157,14 @@ Fill in the placeholders when the stack is deployed, and do not leave any in a l
 ## Post-incident
 
 1. **Confirm recovery.** All three breakers at 0 on the dashboard, p99 back under the alarm line, and `curl -s $URL/health` shows `closed` for each stage. Wait until every breaker is closed (poll `/health`, or watch the "Circuit breakers" widget) before replaying.
-2. **Replay the dead letters in batches of 50.** Loop until nothing is pending:
+2. **Replay the dead letters in batches: 50 on the GPU tier, 10 on the CPU tier.** On a constrained model tier, replay after the campaign window, not during it: a replay competes with live calls for the same models. In the 2026-10-09 run a 64-entry replay mid-spike opened the STT breaker for 5 minutes (see `docs/round2-results.md`). Loop until nothing is pending:
 
    ```bash
    curl -s -X POST "$URL/v1/dlq/replay?limit=50"
    curl -s "$URL/v1/dlq?status=pending&limit=1"     # "counts" holds the pending total; repeat both until it is 0
    ```
 
-   Why 50: the ALB's idle timeout is 60 s and a request that runs longer is cut with a 504 (and an ELB 5xx on the dashboard). One `limit=1000` call over a few hundred entries at 2-3 s per real-model turn takes longer than that. The replay keeps running on the server after the 504, but you lose its result. Batches of 50 stay well under the limit.
+   Why 50: the ALB's idle timeout is 60 s and a request that runs longer is cut with a 504 (and an ELB 5xx on the dashboard). One `limit=1000` call over a few hundred entries at 2-3 s per real-model turn takes longer than that. The replay keeps running on the server after the 504, but you lose its result. Batches of 50 stay well under the limit on the GPU tier. On the CPU tier a turn takes 5-10 s, so a batch of 50 did exceed it (measured 2026-10-09: 504s, all entries still resolved); use `limit=10` there.
 
    Replay is canary-first: it replays one entry, and continues (8 at a time) only after one has resolved and every breaker is closed. While any breaker is open it replays nothing: the bulk call returns HTTP 200 with every entry marked `skipped` (the single-entry endpoint `POST /v1/dlq/{id}/replay` returns 503), and no entry is charged a replay. It is safe to repeat: entries that fail go back to `pending` with their replay count incremented. Use the HTTP endpoint rather than `voice-agent dlq replay`, because the CLI on your laptop cannot reach the internal model tier. Watch the "Dead-letter queue" widget (resolved by replay) as well.
 3. **Record actual versus expected.**
