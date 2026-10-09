@@ -73,7 +73,7 @@ resource "aws_iam_role_policy" "task" {
   policy = data.aws_iam_policy_document.task.json
 }
 
-# ---- GPU host: pull the proxy image, ship container logs, accept SSM Run Command -----
+# ---- Model host (gpu or cpu tier): pull the proxy image, ship container logs, accept SSM Run Command -----
 data "aws_iam_policy_document" "ec2_trust" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -84,7 +84,7 @@ data "aws_iam_policy_document" "ec2_trust" {
   }
 }
 
-data "aws_iam_policy_document" "gpu" {
+data "aws_iam_policy_document" "model_host" {
   statement {
     sid       = "EcrAuthToken"
     actions   = ["ecr:GetAuthorizationToken"]
@@ -98,7 +98,7 @@ data "aws_iam_policy_document" "gpu" {
   statement {
     sid       = "ContainerLogs"
     actions   = ["logs:CreateLogStream", "logs:PutLogEvents"]
-    resources = ["${aws_cloudwatch_log_group.gpu.arn}:*"]
+    resources = ["${aws_cloudwatch_log_group.model_host.arn}:*"]
   }
   statement {
     sid = "SsmAgent" # the SSM agent actions Run Command and inventory need; modelled on AmazonSSMManagedInstanceCore but not identical (no ssm:GetParameter(s))
@@ -131,18 +131,18 @@ data "aws_iam_policy_document" "gpu" {
   }
 }
 
-resource "aws_iam_role" "gpu" {
-  name               = "${local.name}-gpu"
+resource "aws_iam_role" "model_host" {
+  name               = "${local.name}-models"
   assume_role_policy = data.aws_iam_policy_document.ec2_trust.json
 }
 
-resource "aws_iam_role_policy" "gpu" {
+resource "aws_iam_role_policy" "model_host" {
   name   = "proxy-logs-ssm"
-  role   = aws_iam_role.gpu.id
-  policy = data.aws_iam_policy_document.gpu.json
+  role   = aws_iam_role.model_host.id
+  policy = data.aws_iam_policy_document.model_host.json
 }
 
-resource "aws_iam_instance_profile" "gpu" {
-  name = "${local.name}-gpu"
-  role = aws_iam_role.gpu.name
+resource "aws_iam_instance_profile" "model_host" {
+  name = "${local.name}-models"
+  role = aws_iam_role.model_host.name
 }

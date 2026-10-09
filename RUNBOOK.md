@@ -60,8 +60,8 @@ curl -s $URL/health
 
 **3. What is the model tier actually receiving?**
 
-- Widget: "Model tier health (NLB healthy hosts)". 0 means the GPU host is down or still booting (a fresh boot takes 15-20 minutes to download images and weights).
-- `scripts/chaos.py` runs over SSM against the running GPU host (`model_tier = "gpu"` only; it exits with "no running GPU host" otherwise). It prints the chaos proxy's own per-stage request and outcome counts (what the model tier actually received). Compare them with what the service thinks it sent.
+- Widget: "Model tier health (NLB healthy hosts)". 0 means the model host is down or still booting (a fresh boot takes about 10 minutes on the cpu tier, 15-20 on the gpu tier, to download images and weights).
+- `scripts/chaos.py` runs over SSM against the running model host (`model_tier = "gpu"` or `"cpu"`; it exits with "no running model host" otherwise). It prints the chaos proxy's own per-stage request and outcome counts (what the model tier actually received). Compare them with what the service thinks it sent.
 
 ```bash
 uv run python scripts/chaos.py stats
@@ -90,12 +90,12 @@ Symptoms: one or more breakers at 2, "Provider failures by stage" rising, degrad
      STORE_BACKEND=dynamodb AWS_PROFILE=predixion uv run voice-agent dlq list --status pending
      STORE_BACKEND=dynamodb AWS_PROFILE=predixion uv run voice-agent dlq show <id>
      ```
-4. **Fix or wait out the dependency.** For the GPU tier: check the NLB health widget, then the GPU host's log group `/gpu/collectionsinference` in CloudWatch Logs (docker compose output: vLLM, Speaches, chaos proxy). If the host was replaced it is reloading models for 15-20 minutes; the breakers stay open until it is healthy, which is correct.
+4. **Fix or wait out the dependency.** For the gpu or cpu tier: check the NLB health widget, then the model host's log group `/models/collectionsinference` in CloudWatch Logs (docker compose output: vLLM or llama.cpp, Speaches, chaos proxy). If the host was replaced it is reloading models (about 10 minutes on cpu, 15-20 on gpu); the breakers stay open until it is healthy, which is correct.
 
    If the host never becomes healthy, the bootstrap itself may have failed. Its output goes to `/var/log/collections-bootstrap.log` on the host (and is not in CloudWatch until the compose containers start). Find the instance, then read the EC2 console output or tail the log over SSM:
 
    ```bash
-   ID=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names $(terraform -chdir=infra output -raw gpu_asg) --query 'AutoScalingGroups[0].Instances[0].InstanceId' --output text --profile predixion --region ap-southeast-2)
+   ID=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names $(terraform -chdir=infra output -raw model_host_asg) --query 'AutoScalingGroups[0].Instances[0].InstanceId' --output text --profile predixion --region ap-southeast-2)
    aws ec2 get-console-output --instance-id $ID --latest --output text --profile predixion --region ap-southeast-2
    CMD=$(aws ssm send-command --instance-ids $ID --document-name AWS-RunShellScript --parameters 'commands=["tail -n 100 /var/log/collections-bootstrap.log"]' --query Command.CommandId --output text --profile predixion --region ap-southeast-2)
    aws ssm get-command-invocation --command-id $CMD --instance-id $ID --query StandardOutputContent --output text --profile predixion --region ap-southeast-2
@@ -128,9 +128,9 @@ Symptoms: "Active calls" per task well above 10 and "Tasks: desired vs running" 
 
 ### Caveats before running `terraform apply` during an incident
 
-- Changing app source code (`src/**/*.py`, `pyproject.toml`, `uv.lock`, the `Dockerfile`; a README edit does not count) or `failure_rate` replaces the GPU host, which means about 15-20 minutes of image and model download with the model tier down. Do not do this during a campaign window.
+- Changing app source code (`src/**/*.py`, `pyproject.toml`, `uv.lock`, the `Dockerfile`; a README edit does not count) or `failure_rate` replaces the model host, which means 10-20 minutes of image and model download with the model tier down. Do not do this during a campaign window.
 - An apply during a campaign window resets the pre-warm: Terraform sets the autoscaling minimum back to `min_tasks`, so the service can scale in mid-campaign.
-- The GPU has a dead-man switch (`gpu_max_hours`, default 4). After it fires, the ASG is at 0 and the model tier is down. Re-applying after it fired turns the GPU back on (and starts the 15-20 minute boot again).
+- The model host has a dead-man switch (`model_host_max_hours`, default 3). After it fires, the ASG is at 0 and the model tier is down. Re-applying after it fired turns the host back on (and starts the boot again).
 - Before the first `model_tier = "gpu"` apply, run these two checks (neither is done by Terraform):
   - The vLLM image tag exists, or the host will boot and never serve: `docker manifest inspect vllm/vllm-openai:v0.31.0 > /dev/null`.
   - The Deep Learning AMI's root device is `/dev/xvda`, which the launch template assumes:
@@ -139,7 +139,7 @@ Symptoms: "Active calls" per task well above 10 and "Tasks: desired vs running" 
     AMI=$(aws ssm get-parameter --name /aws/service/deeplearning/ami/x86_64/base-oss-nvidia-driver-gpu-amazon-linux-2023/latest/ami-id --query Parameter.Value --output text --profile predixion --region ap-southeast-2)
     aws ec2 describe-images --image-ids $AMI --query 'Images[0].RootDeviceName' --profile predixion --region ap-southeast-2
     ```
-- To extend the dead-man switch, quote the address so it works in both shells: `terraform -chdir=infra apply "-replace=aws_autoscaling_schedule.gpu_off[0]"`.
+- To extend the dead-man switch, quote the address so it works in both shells: `terraform -chdir=infra apply "-replace=aws_autoscaling_schedule.model_host_off[0]"`.
 
 ## Escalation
 
@@ -175,7 +175,7 @@ Fill in the placeholders when the stack is deployed, and do not leave any in a l
    | p99 `TurnLatency` at peak | under the 3x baseline line | |
 
 4. **Write down the cause and the one change that would have prevented it** (alarm threshold, quota, pre-warm, timeout).
-5. **Teardown reminder.** If this was a demo or test stack, tear it down. The GPU host alone costs $1.208 per hour on-demand (about $1.30 per hour including EBS and NAT data) and keeps running until you do:
+5. **Teardown reminder.** If this was a demo or test stack, tear it down. The model host alone costs $0.466 per hour (cpu, c7i.2xlarge) or $1.308 per hour (gpu, g5.xlarge) on-demand in ap-southeast-2 and keeps running until you do:
 
    ```bash
    terraform -chdir=infra destroy           # Docker Desktop must be running

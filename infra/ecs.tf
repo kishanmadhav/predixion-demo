@@ -36,7 +36,14 @@ resource "aws_ecs_cluster" "main" {
 }
 
 locals {
-  provider_kind = var.model_tier == "gpu" ? "openai" : "mock"
+  provider_kind = var.model_tier == "mock" ? "mock" : "openai"
+  default_stage_timeouts = {
+    mock = { stt = 5, llm = 8, tts = 5 }
+    gpu  = { stt = 5, llm = 8, tts = 5 }
+    cpu  = { stt = 8, llm = 15, tts = 8 } # CPU models are slower; re-set from measured p99
+  }
+  stage_timeouts  = coalesce(var.stage_timeouts_s, local.default_stage_timeouts[var.model_tier])
+  turn_deadline_s = coalesce(var.turn_deadline_s, var.model_tier == "cpu" ? 30 : 20)
   app_env = {
     HOST             = "0.0.0.0"
     PORT             = "8080"
@@ -47,21 +54,21 @@ locals {
     EMF_ENABLED      = "true"
     EMF_NAMESPACE    = local.metric_namespace
     EMF_SERVICE_NAME = local.service_name
-    TURN_DEADLINE_S  = tostring(var.turn_deadline_s)
+    TURN_DEADLINE_S  = tostring(local.turn_deadline_s)
     STT_PROVIDER     = local.provider_kind
     STT_BASE_URL     = local.provider_url
-    STT_MODEL        = var.stt_model
-    STT_TIMEOUT_S    = tostring(var.stage_timeouts_s.stt)
+    STT_MODEL        = local.stt_model
+    STT_TIMEOUT_S    = tostring(local.stage_timeouts.stt)
     LLM_PROVIDER     = local.provider_kind
     LLM_BASE_URL     = local.provider_url
-    LLM_MODEL        = var.llm_model
-    LLM_TIMEOUT_S    = tostring(var.stage_timeouts_s.llm)
-    LLM_MAX_TOKENS   = "80" # short replies: a voice turn is a sentence or two, and fewer tokens means lower latency
+    LLM_MODEL        = local.llm_model
+    LLM_TIMEOUT_S    = tostring(local.stage_timeouts.llm)
+    LLM_MAX_TOKENS   = var.model_tier == "cpu" ? "48" : "80" # short replies: a voice turn is a sentence or two, and fewer tokens means lower latency
     TTS_PROVIDER     = local.provider_kind
     TTS_BASE_URL     = local.provider_url
     TTS_MODEL        = var.tts_model
     TTS_VOICE        = var.tts_voice
-    TTS_TIMEOUT_S    = tostring(var.stage_timeouts_s.tts)
+    TTS_TIMEOUT_S    = tostring(local.stage_timeouts.tts)
   }
 }
 

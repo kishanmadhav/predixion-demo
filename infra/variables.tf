@@ -31,12 +31,12 @@ variable "allowed_cidrs" {
 }
 
 variable "model_tier" {
-  description = "mock: mock provider on Fargate (cheap infra check). gpu: g5.xlarge with vLLM + Speaches."
+  description = "mock: mock provider on Fargate (cheap infra check). gpu: g5.xlarge with vLLM + Speaches. cpu: c7i.2xlarge with llama.cpp + Speaches (no-GPU-quota fallback, docs/cpu-tier.md)."
   type        = string
   default     = "mock"
   validation {
-    condition     = contains(["mock", "gpu"], var.model_tier)
-    error_message = "model_tier must be \"mock\" or \"gpu\"."
+    condition     = contains(["mock", "gpu", "cpu"], var.model_tier)
+    error_message = "model_tier must be \"mock\", \"gpu\" or \"cpu\"."
   }
 }
 
@@ -84,14 +84,15 @@ variable "failure_rate" {
 }
 
 variable "turn_deadline_s" {
-  type    = number
-  default = 20
+  description = "Whole-turn deadline. null: 20 s (mock, gpu) or 30 s (cpu, slower models)."
+  type        = number
+  default     = null
 }
 
 variable "stage_timeouts_s" {
-  description = "Per-attempt timeouts; set from measured p99 on the GPU (Task 13)."
+  description = "Per-attempt timeouts; set from measured p99. null: per-tier defaults in ecs.tf."
   type        = object({ stt = number, llm = number, tts = number })
-  default     = { stt = 5, llm = 8, tts = 5 }
+  default     = null
 }
 
 variable "llm_hf_model" {
@@ -135,10 +136,54 @@ variable "gpu_instance_type" {
   default = "g5.xlarge"
 }
 
-variable "gpu_max_hours" {
-  description = "Dead-man switch: the GPU ASG scales to zero this many hours after it is created."
+variable "model_host_max_hours" {
+  description = "Dead-man switch: the model host ASG (gpu or cpu tier) scales to zero this many hours after it is created."
   type        = number
   default     = 3
+}
+
+variable "cpu_instance_type" {
+  description = "cpu tier host. 8 vCPUs fits a new account's 8-vCPU standard on-demand quota."
+  type        = string
+  default     = "c7i.2xlarge"
+}
+
+variable "llama_image" {
+  type    = string
+  default = "ghcr.io/ggml-org/llama.cpp:server-b11515"
+}
+
+variable "cpu_llm_gguf" {
+  description = "Hugging Face GGUF repo:quant that llama.cpp downloads (-hf)."
+  type        = string
+  default     = "Qwen/Qwen2.5-1.5B-Instruct-GGUF:Q4_K_M"
+}
+
+variable "cpu_llm_model" {
+  description = "Name llama.cpp serves the cpu-tier model under."
+  type        = string
+  default     = "qwen2.5-1.5b-instruct"
+}
+
+variable "cpu_llm_threads" {
+  type    = number
+  default = 4
+}
+
+variable "cpu_llm_parallel" {
+  description = "llama.cpp parallel slots (concurrent requests, continuously batched)."
+  type        = number
+  default     = 4
+}
+
+variable "cpu_stt_model" {
+  type    = string
+  default = "Systran/faster-whisper-base"
+}
+
+variable "cpu_speaches_image" {
+  type    = string
+  default = "ghcr.io/speaches-ai/speaches:latest-cpu"
 }
 
 variable "compose_version" {

@@ -18,8 +18,8 @@ output "models_endpoint" {
   value = local.provider_url
 }
 
-output "gpu_asg" {
-  value = var.model_tier == "gpu" ? aws_autoscaling_group.gpu[0].name : null
+output "model_host_asg" {
+  value = local.host_tier ? aws_autoscaling_group.model_host[0].name : null
 }
 
 output "dashboard_url" {

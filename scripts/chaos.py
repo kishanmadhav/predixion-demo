@@ -1,4 +1,4 @@
-"""Drive the GPU host's chaos proxy from your laptop, without exposing it.
+"""Drive the model host's chaos proxy from your laptop, without exposing it.
 
 The proxy listens only inside the VPC. This sends `curl` to it over SSM Run Command,
 authenticated by your AWS profile.
@@ -20,7 +20,7 @@ from typing import Any
 
 import boto3
 
-TAG_NAME = "collectionsinference-gpu"
+TAG_NAME = "collectionsinference-models"
 
 
 def instance_id(ec2: Any) -> str:
@@ -32,7 +32,7 @@ def instance_id(ec2: Any) -> str:
     )["Reservations"]
     ids = [i["InstanceId"] for r in reservations for i in r["Instances"]]
     if not ids:
-        sys.exit('no running GPU host (is model_tier = "gpu" applied?)')
+        sys.exit('no running model host (is model_tier = "gpu" or "cpu" applied?)')
     return str(ids[0])
 
 

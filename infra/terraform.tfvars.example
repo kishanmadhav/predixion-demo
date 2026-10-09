@@ -1,7 +1,7 @@
 # Copy to terraform.tfvars (git-ignored) and edit.
 aws_profile   = "predixion"
 allowed_cidrs = ["203.0.113.7/32"] # your IP: curl -s https://checkip.amazonaws.com, plus "/32" (0.0.0.0/0 is rejected)
-model_tier    = "mock"             # "gpu" once the G-instance quota is approved
+model_tier    = "mock"             # "cpu" (no GPU quota, docs/cpu-tier.md) or "gpu" once the G-instance quota is approved
 # alert_email = "you@example.com"
 # Pre-warm the floor (3 tasks); ActiveCalls target tracking scales the peak above it.
 # campaign_prewarm = { start = "at(2026-10-08T10:00:00)", end = "at(2026-10-08T10:40:00)", min_tasks = 3 }

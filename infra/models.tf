@@ -23,7 +23,7 @@ resource "aws_vpc_security_group_egress_rule" "nlb_to_models" {
 
 resource "aws_security_group" "models" {
   name        = "${local.name}-models"
-  description = "Model tier (mock task or GPU host): 8080 from the NLB only"
+  description = "Model tier (mock task or model host): 8080 from the NLB only"
   vpc_id      = aws_vpc.main.id
   tags        = { Name = "${local.name}-models" }
 }
@@ -48,20 +48,20 @@ resource "aws_lb" "models" {
   internal                         = true
   subnets                          = aws_subnet.private[*].id
   security_groups                  = [aws_security_group.nlb.id]
-  enable_cross_zone_load_balancing = true # one GPU host serves tasks in both AZs
+  enable_cross_zone_load_balancing = true # one model host serves tasks in both AZs
 }
 
 resource "aws_lb_target_group" "models" {
   name                 = "${local.name}-models-${var.model_tier}"
   vpc_id               = aws_vpc.main.id
-  target_type          = var.model_tier == "gpu" ? "instance" : "ip"
+  target_type          = local.host_tier ? "instance" : "ip"
   port                 = 8080
   protocol             = "TCP"
   deregistration_delay = 10
   preserve_client_ip   = "false" # the models security group admits the NLB security group, not client IPs
   health_check {
     protocol            = "HTTP"
-    path                = var.model_tier == "gpu" ? "/ready" : "/health"
+    path                = local.host_tier ? "/ready" : "/health"
     port                = "8080"
     interval            = 10
     healthy_threshold   = 2
