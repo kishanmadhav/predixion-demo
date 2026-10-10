@@ -1,0 +1,25 @@
+Teardown check 20261010T071047Z
+account 421482181886  identity arn:aws:iam::421482181886:user/kishan-madhav  profile predixion  region ap-southeast-2
+scope: EC2 instances, NAT gateways, Load balancers, Classic load balancers, Elastic IPs, EBS volumes, EBS snapshots, AMIs, Network interfaces, VPC endpoints, Non-default VPCs, Auto Scaling groups, ECS clusters, DynamoDB tables, ECR repositories, CloudWatch log groups, CloudWatch alarms, CloudWatch dashboards, SNS topics (this region only; global services such as IAM and S3 are not checked)
+
+[ ok ] EC2 instances: 0
+[ ok ] NAT gateways: 0
+[ ok ] Load balancers: 0
+[ ok ] Classic load balancers: 0
+[ ok ] Elastic IPs: 0
+[ ok ] EBS volumes: 0
+[ ok ] EBS snapshots: 0
+[ ok ] AMIs: 0
+[ ok ] Network interfaces: 0
+[ ok ] VPC endpoints: 0
+[ ok ] Non-default VPCs: 0
+[ ok ] Auto Scaling groups: 0
+[ ok ] ECS clusters: 0
+[ ok ] DynamoDB tables: 0
+[ ok ] ECR repositories: 0
+[ ok ] CloudWatch log groups: 0
+[ ok ] CloudWatch alarms: 0
+[ ok ] CloudWatch dashboards: 0
+[ ok ] SNS topics: 0
+
+CLEAN: no billable resources remain
