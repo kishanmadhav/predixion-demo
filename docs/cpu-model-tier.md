@@ -67,7 +67,7 @@ A CPU serves far fewer requests per second than an A10G, so the campaign is scal
   - The default `baseline:10:10,spike:15:50,cooldown:10:10` becomes `baseline:10:3,spike:15:8,cooldown:10:3`.
   - A call lasts about 90 s (two 30 s gaps plus three slow turns). By Little's law that is about 4-5 concurrent calls at baseline and about 12 at the peak.
 - **Autoscaling target.** `target_active_calls = 2`, so 12 calls means about 6 tasks. The service scales from the 2-task floor to well above it, which is what the demo has to show; only the absolute numbers are smaller.
-- **Rehearsal on AWS first.** A short run (`smoke:3:8`) checks these numbers on the m7a host. The stage timeouts and `baseline_p99_ms` are then set from what was measured, and the measured results go into the README.
+- **Rehearsal on AWS first.** A short run (`smoke:3:8`) checks these numbers on the m7a host. The stage timeouts and `baseline_p99_ms` are then set from what was measured, and the measured results are in [load-test-results.md](load-test-results.md).
 - **Latency is the cost of CPU inference.** Uncontended, the three stages take about 0.5 + 1.2 + 1.3 s. Under load, the p50 includes queueing behind other calls, retries after injected failures, and injected hangs that wait out a stage timeout.
 
 ## What this does not show

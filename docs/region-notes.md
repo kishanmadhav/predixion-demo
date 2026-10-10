@@ -50,4 +50,4 @@ This is not built in the exercise.
 
 ## Price in the region
 
-On-demand prices in ap-south-1 differ from us-east-1. Fargate is about 5% above us-east-1, which is small next to the choice of destroying the stack between sessions. The cost table in the README uses the ap-south-1 prices checked on 2026-10-07.
+On-demand prices in ap-south-1 differ from us-east-1. Fargate is about 5% above us-east-1, which is small next to the choice of destroying the stack between sessions. The original estimate in the design doc used ap-south-1 prices checked on 2026-10-07; the deployed run used Sydney prices (see [aws-deployment.md](aws-deployment.md#cost)).

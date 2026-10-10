@@ -1,6 +1,6 @@
 # Runbook: Collections Voice-Agent Inference Service
 
-Scope: the Round 2 deployment in ap-southeast-2 (Sydney; see the README for why not ap-south-1) (see the README section "Round 2: AWS deployment"). Names below are the real ones from `infra/`: cluster `collectionsinference`, ECS service `voice-agent`, SNS topic `collectionsinference-alarms`, CloudWatch dashboard `collectionsinference`.
+Scope: the Round 2 deployment in ap-southeast-2 (Sydney), set up as in [docs/aws-deployment.md](docs/aws-deployment.md). Names below are the real ones from `infra/`: cluster `collectionsinference`, ECS service `voice-agent`, SNS topic `collectionsinference-alarms`, CloudWatch dashboard `collectionsinference`.
 
 Set up your shell once (from the repo root, with the `predixion` profile configured for ap-southeast-2). The commands in this runbook assume Git Bash (or another POSIX shell):
 
