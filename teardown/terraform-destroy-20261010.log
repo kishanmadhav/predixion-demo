@@ -1,0 +1,3535 @@
+data.aws_ssm_parameter.al2023: Reading...
+data.aws_ecr_authorization_token.this: Reading...
+data.aws_availability_zones.selected: Reading...
+aws_cloudwatch_log_group.app: Refreshing state... [id=/ecs/collectionsinference]
+aws_vpc.main: Refreshing state... [id=vpc-03724b28212b9ec03]
+aws_cloudwatch_log_group.model_host: Refreshing state... [id=/models/collectionsinference]
+aws_cloudwatch_log_group.container_insights: Refreshing state... [id=/aws/ecs/containerinsights/collectionsinference/performance]
+aws_eip.nat: Refreshing state... [id=eipalloc-02515f4f681a5b7b1]
+aws_sns_topic.alarms: Refreshing state... [id=arn:aws:sns:ap-southeast-2:421482181886:collectionsinference-alarms]
+aws_ecr_repository.app: Refreshing state... [id=collectionsinference]
+data.aws_ecr_authorization_token.this: Read complete after 3s [id=ap-southeast-2]
+data.aws_ssm_parameter.dlami: Reading...
+data.aws_ssm_parameter.al2023: Read complete after 3s [id=/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64]
+data.aws_caller_identity.current: Reading...
+data.aws_availability_zones.selected: Read complete after 3s [id=ap-southeast-2]
+data.aws_ssm_parameter.dlami: Read complete after 0s [id=/aws/service/deeplearning/ami/x86_64/base-oss-nvidia-driver-gpu-amazon-linux-2023/latest/ami-id]
+data.aws_iam_policy_document.ec2_trust: Reading...
+aws_dynamodb_table.state: Refreshing state... [id=collectionsinference-state]
+data.aws_iam_policy_document.ec2_trust: Read complete after 1s [id=2851119427]
+aws_cloudwatch_log_group.events: Refreshing state... [id=/aws/events/collectionsinference]
+data.aws_caller_identity.current: Read complete after 1s [id=421482181886]
+data.aws_iam_policy_document.ecs_tasks_trust: Reading...
+aws_ecs_cluster.main: Refreshing state... [id=arn:aws:ecs:ap-southeast-2:421482181886:cluster/collectionsinference]
+data.aws_iam_policy_document.ecs_tasks_trust: Read complete after 0s [id=1326393134]
+aws_cloudwatch_metric_alarm.dlq_pending: Refreshing state... [id=collectionsinference-dlq-pending]
+aws_cloudwatch_metric_alarm.p99_latency: Refreshing state... [id=collectionsinference-p99-latency-3x-baseline]
+aws_iam_role.task: Refreshing state... [id=collectionsinference-task]
+aws_iam_role.model_host: Refreshing state... [id=collectionsinference-models]
+aws_iam_role.execution: Refreshing state... [id=collectionsinference-execution]
+aws_cloudwatch_metric_alarm.breaker_open["tts"]: Refreshing state... [id=collectionsinference-breaker-open-tts]
+aws_cloudwatch_metric_alarm.breaker_open["llm"]: Refreshing state... [id=collectionsinference-breaker-open-llm]
+aws_cloudwatch_metric_alarm.breaker_open["stt"]: Refreshing state... [id=collectionsinference-breaker-open-stt]
+data.aws_iam_policy_document.events_to_logs: Reading...
+aws_ecr_lifecycle_policy.app: Refreshing state... [id=collectionsinference]
+data.aws_iam_policy_document.model_host: Reading...
+aws_sns_topic_subscription.email[0]: Refreshing state... [id=arn:aws:sns:ap-southeast-2:421482181886:collectionsinference-alarms:7022d961-d7e5-4e9b-abd6-56f754bd8ec5]
+data.aws_iam_policy_document.events_to_logs: Read complete after 0s [id=3391436687]
+data.aws_iam_policy_document.execution: Reading...
+docker_image.app: Refreshing state... [id=sha256:748346b75c518584d80ed9837082b2623f095fbf2feaedb191474646b95abd11421482181886.dkr.ecr.ap-southeast-2.amazonaws.com/collectionsinference:ec400f1b535f]
+data.aws_iam_policy_document.execution: Read complete after 2s [id=1406985970]
+data.aws_iam_policy_document.model_host: Read complete after 2s [id=2260630439]
+aws_cloudwatch_event_rule.scaling_alarms: Refreshing state... [id=collectionsinference-scaling-alarms]
+aws_cloudwatch_log_resource_policy.events: Refreshing state... [id=collectionsinference-events]
+aws_internet_gateway.main: Refreshing state... [id=igw-036482bfd72d55378]
+aws_security_group.models: Refreshing state... [id=sg-0544ece4c0cdf037b]
+aws_security_group.tasks: Refreshing state... [id=sg-054c1a416ca59bc6b]
+aws_lb_target_group.app: Refreshing state... [id=arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:targetgroup/collectionsinference-app/9a2c6896484c3c1e]
+aws_subnet.private[0]: Refreshing state... [id=subnet-046697c7f26b34369]
+aws_security_group.alb: Refreshing state... [id=sg-0fb9f3b416a63b9d5]
+aws_subnet.private[1]: Refreshing state... [id=subnet-083c5e6b582be9fed]
+aws_lb_target_group.models: Refreshing state... [id=arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:targetgroup/collectionsinference-models-cpu/6336b79c46e85604]
+aws_security_group.nlb: Refreshing state... [id=sg-01edd0f84f575b028]
+aws_subnet.public[0]: Refreshing state... [id=subnet-004e5df2a6ad2289e]
+aws_subnet.public[1]: Refreshing state... [id=subnet-04de17c55a3bbe70e]
+aws_route_table.public: Refreshing state... [id=rtb-069b6f966ef8a906d]
+aws_iam_role_policy.execution: Refreshing state... [id=collectionsinference-execution:pull-and-log]
+aws_vpc_security_group_egress_rule.models_out: Refreshing state... [id=sgr-0c239022f6a83f95f]
+aws_iam_role_policy.model_host: Refreshing state... [id=collectionsinference-models:proxy-logs-ssm]
+aws_iam_instance_profile.model_host: Refreshing state... [id=collectionsinference-models]
+aws_vpc_security_group_egress_rule.tasks_out: Refreshing state... [id=sgr-01bfb2ce1fcd7c4aa]
+aws_vpc_security_group_egress_rule.alb_to_tasks: Refreshing state... [id=sgr-04e21c4b2751475e6]
+aws_vpc_security_group_ingress_rule.tasks_from_alb: Refreshing state... [id=sgr-0b2bd82cb85e79f51]
+aws_vpc_security_group_ingress_rule.alb_http["122.167.99.20/32"]: Refreshing state... [id=sgr-0bf314b2b3bd39bca]
+aws_vpc_security_group_ingress_rule.models_from_nlb: Refreshing state... [id=sgr-0bb727ff4cb5f1ed9]
+aws_vpc_security_group_ingress_rule.nlb_from_tasks: Refreshing state... [id=sgr-097bceb60bdc06933]
+aws_vpc_security_group_egress_rule.nlb_to_models: Refreshing state... [id=sgr-0b263dc283e483bfd]
+aws_nat_gateway.main: Refreshing state... [id=nat-0dd1e83ddea07f214]
+aws_lb.models: Refreshing state... [id=arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:loadbalancer/net/collectionsinference-models/e204f73fdf80ecd9]
+aws_lb.app: Refreshing state... [id=arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:loadbalancer/app/collectionsinference/9d43e3c05a41b87a]
+docker_registry_image.app: Refreshing state... [id=sha256:748346b75c518584d80ed9837082b2623f095fbf2feaedb191474646b95abd11]
+aws_route_table_association.public[1]: Refreshing state... [id=rtbassoc-098c23a41e0a06e5a]
+aws_route_table_association.public[0]: Refreshing state... [id=rtbassoc-05c5ef3b66e4cbf0c]
+aws_cloudwatch_event_target.scaling_alarms_to_logs: Refreshing state... [id=collectionsinference-scaling-alarms-terraform-IpGMiE9PTtF39G5SkrB9qk8oxK]
+data.aws_iam_policy_document.task: Reading...
+data.aws_iam_policy_document.task: Read complete after 0s [id=3227284468]
+aws_iam_role_policy.task: Refreshing state... [id=collectionsinference-task:state-table]
+aws_route_table.private: Refreshing state... [id=rtb-012101b6868435a6e]
+aws_route_table_association.private[1]: Refreshing state... [id=rtbassoc-01c11429d9312d629]
+aws_route_table_association.private[0]: Refreshing state... [id=rtbassoc-0fa87e788e6461947]
+aws_vpc_endpoint.s3: Refreshing state... [id=vpce-0b2b19471b36b03a9]
+aws_vpc_endpoint.dynamodb: Refreshing state... [id=vpce-0293c31b83566b282]
+aws_launch_template.model_host[0]: Refreshing state... [id=lt-0e92c26b79f5f7f22]
+aws_cloudwatch_metric_alarm.elb_5xx: Refreshing state... [id=collectionsinference-elb-5xx]
+aws_cloudwatch_metric_alarm.target_5xx: Refreshing state... [id=collectionsinference-http-5xx]
+aws_lb_listener.http: Refreshing state... [id=arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:listener/app/collectionsinference/9d43e3c05a41b87a/d988ce73f3429288]
+aws_ecs_task_definition.app: Refreshing state... [id=voice-agent]
+aws_lb_listener.models: Refreshing state... [id=arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:listener/net/collectionsinference-models/e204f73fdf80ecd9/b4d597ff6ba6ff2c]
+aws_autoscaling_group.model_host[0]: Refreshing state... [id=collectionsinference-models-cpu]
+aws_ecs_service.app: Refreshing state... [id=arn:aws:ecs:ap-southeast-2:421482181886:service/collectionsinference/voice-agent]
+aws_autoscaling_schedule.model_host_off[0]: Refreshing state... [id=dead-man-switch]
+aws_cloudwatch_event_rule.ecs: Refreshing state... [id=collectionsinference-ecs-events]
+aws_cloudwatch_dashboard.main: Refreshing state... [id=collectionsinference]
+aws_appautoscaling_target.app: Refreshing state... [id=service/collectionsinference/voice-agent]
+aws_cloudwatch_event_target.ecs_to_logs: Refreshing state... [id=collectionsinference-ecs-events-terraform-ud7W3y8zRRlNsBgO8OaqOGs9Vi]
+aws_appautoscaling_policy.active_calls: Refreshing state... [id=active-calls-per-task]
+
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  - destroy
+
+Terraform will perform the following actions:
+
+  # aws_appautoscaling_policy.active_calls will be destroyed
+  - resource "aws_appautoscaling_policy" "active_calls" {
+      - alarm_arns         = [
+          - "arn:aws:cloudwatch:ap-southeast-2:421482181886:alarm:TargetTracking-service/collectionsinference/voice-agent-AlarmHigh-2fd18a8c-d498-4b85-b305-0032732c2028",
+          - "arn:aws:cloudwatch:ap-southeast-2:421482181886:alarm:TargetTracking-service/collectionsinference/voice-agent-AlarmLow-3cc6921a-5eda-40b2-b00d-6b08c4d2a5e5",
+        ] -> null
+      - arn                = "arn:aws:autoscaling:ap-southeast-2:421482181886:scalingPolicy:03bf8ee1-29a9-466e-88f0-930a90d61365:resource/ecs/service/collectionsinference/voice-agent:policyName/active-calls-per-task" -> null
+      - id                 = "active-calls-per-task" -> null
+      - name               = "active-calls-per-task" -> null
+      - policy_type        = "TargetTrackingScaling" -> null
+      - region             = "ap-southeast-2" -> null
+      - resource_id        = "service/collectionsinference/voice-agent" -> null
+      - scalable_dimension = "ecs:service:DesiredCount" -> null
+      - service_namespace  = "ecs" -> null
+
+      - target_tracking_scaling_policy_configuration {
+          - disable_scale_in   = false -> null
+          - scale_in_cooldown  = 180 -> null
+          - scale_out_cooldown = 60 -> null
+          - target_value       = 2 -> null
+
+          - customized_metric_specification {
+              - metric_name = "ActiveCalls" -> null
+              - namespace   = "CollectionsChallenge" -> null
+              - statistic   = "Average" -> null
+                # (1 unchanged attribute hidden)
+
+              - dimensions {
+                  - name  = "ServiceName" -> null
+                  - value = "voice-agent" -> null
+                }
+            }
+        }
+    }
+
+  # aws_appautoscaling_target.app will be destroyed
+  - resource "aws_appautoscaling_target" "app" {
+      - arn                = "arn:aws:application-autoscaling:ap-southeast-2:421482181886:scalable-target/0ec503bf8ee129a9466e88f0930a90d61365" -> null
+      - id                 = "service/collectionsinference/voice-agent" -> null
+      - max_capacity       = 10 -> null
+      - min_capacity       = 2 -> null
+      - region             = "ap-southeast-2" -> null
+      - resource_id        = "service/collectionsinference/voice-agent" -> null
+      - role_arn           = "arn:aws:iam::421482181886:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService" -> null
+      - scalable_dimension = "ecs:service:DesiredCount" -> null
+      - service_namespace  = "ecs" -> null
+      - tags               = {} -> null
+      - tags_all           = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+
+      - suspended_state {
+          - dynamic_scaling_in_suspended  = false -> null
+          - dynamic_scaling_out_suspended = false -> null
+          - scheduled_scaling_suspended   = false -> null
+        }
+    }
+
+  # aws_autoscaling_group.model_host[0] will be destroyed
+  - resource "aws_autoscaling_group" "model_host" {
+      - arn                              = "arn:aws:autoscaling:ap-southeast-2:421482181886:autoScalingGroup:06605548-9883-4373-951b-5e6b38178748:autoScalingGroupName/collectionsinference-models-cpu" -> null
+      - availability_zones               = [
+          - "ap-southeast-2a",
+          - "ap-southeast-2c",
+        ] -> null
+      - capacity_rebalance               = false -> null
+      - default_cooldown                 = 300 -> null
+      - default_instance_warmup          = 0 -> null
+      - desired_capacity                 = 1 -> null
+      - enabled_metrics                  = [] -> null
+      - force_delete                     = false -> null
+      - force_delete_warm_pool           = false -> null
+      - health_check_grace_period        = 1200 -> null
+      - health_check_type                = "EC2" -> null
+      - id                               = "collectionsinference-models-cpu" -> null
+      - ignore_failed_scaling_activities = false -> null
+      - load_balancers                   = [] -> null
+      - max_instance_lifetime            = 0 -> null
+      - max_size                         = 1 -> null
+      - metrics_granularity              = "1Minute" -> null
+      - min_size                         = 1 -> null
+      - name                             = "collectionsinference-models-cpu" -> null
+      - predicted_capacity               = 0 -> null
+      - protect_from_scale_in            = false -> null
+      - region                           = "ap-southeast-2" -> null
+      - service_linked_role_arn          = "arn:aws:iam::421482181886:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling" -> null
+      - suspended_processes              = [] -> null
+      - target_group_arns                = [
+          - "arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:targetgroup/collectionsinference-models-cpu/6336b79c46e85604",
+        ] -> null
+      - termination_policies             = [] -> null
+      - vpc_zone_identifier              = [
+          - "subnet-046697c7f26b34369",
+          - "subnet-083c5e6b582be9fed",
+        ] -> null
+      - wait_for_capacity_timeout        = "10m" -> null
+      - warm_pool_size                   = 0 -> null
+        # (5 unchanged attributes hidden)
+
+      - availability_zone_distribution {
+          - capacity_distribution_strategy = "balanced-best-effort" -> null
+        }
+
+      - capacity_reservation_specification {
+          - capacity_reservation_preference = "default" -> null
+        }
+
+      - instance_lifecycle_policy {
+          - retention_triggers {
+              - terminate_hook_abandon = "terminate" -> null
+            }
+        }
+
+      - instance_refresh {
+          - strategy = "Rolling" -> null
+          - triggers = [] -> null
+
+          - preferences {
+              - auto_rollback                = false -> null
+              - checkpoint_percentages       = [] -> null
+              - max_healthy_percentage       = 100 -> null
+              - min_healthy_percentage       = 0 -> null
+              - scale_in_protected_instances = "Ignore" -> null
+              - skip_matching                = false -> null
+              - standby_instances            = "Ignore" -> null
+                # (2 unchanged attributes hidden)
+            }
+        }
+
+      - launch_template {
+          - id      = "lt-0e92c26b79f5f7f22" -> null
+          - name    = "collectionsinference-models-1081957350f8491b738c9a8635" -> null
+          - version = "1" -> null
+        }
+
+      - tag {
+          - key                 = "Name" -> null
+          - propagate_at_launch = true -> null
+          - value               = "collectionsinference-models" -> null
+        }
+
+      - traffic_source {
+          - identifier = "arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:targetgroup/collectionsinference-models-cpu/6336b79c46e85604" -> null
+          - type       = "elbv2" -> null
+        }
+    }
+
+  # aws_autoscaling_schedule.model_host_off[0] will be destroyed
+  - resource "aws_autoscaling_schedule" "model_host_off" {
+      - arn                    = "arn:aws:autoscaling:ap-southeast-2:421482181886:scheduledUpdateGroupAction:834ce35f-b4e0-4c1f-b6ac-438cbaa35994:autoScalingGroupName/collectionsinference-models-cpu:scheduledActionName/dead-man-switch" -> null
+      - autoscaling_group_name = "collectionsinference-models-cpu" -> null
+      - desired_capacity       = 0 -> null
+      - id                     = "dead-man-switch" -> null
+      - max_size               = 0 -> null
+      - min_size               = 0 -> null
+      - region                 = "ap-southeast-2" -> null
+      - scheduled_action_name  = "dead-man-switch" -> null
+      - start_time             = "2026-10-10T08:51:25Z" -> null
+        # (2 unchanged attributes hidden)
+    }
+
+  # aws_cloudwatch_dashboard.main will be destroyed
+  - resource "aws_cloudwatch_dashboard" "main" {
+      - dashboard_arn  = "arn:aws:cloudwatch::421482181886:dashboard/collectionsinference" -> null
+      - dashboard_body = jsonencode(
+            {
+              - widgets = [
+                  - {
+                      - height     = 2
+                      - properties = {
+                          - markdown = <<-EOT
+                                ## Collections voice-agent (ap-southeast-2)
+                                Traffic, capacity, dependencies. Runbook trigger: p99 turn latency > 3x baseline (36000 ms). Degraded turns are answered with a fallback prompt and dead-lettered; the replay path is in RUNBOOK.md.
+                            EOT
+                        }
+                      - type       = "text"
+                      - width      = 24
+                      - x          = 0
+                      - y          = 0
+                    },
+                  - {
+                      - height     = 6
+                      - properties = {
+                          - metrics = [
+                              - [
+                                  - "CollectionsChallenge",
+                                  - "Turns",
+                                  - "ServiceName",
+                                  - "voice-agent",
+                                  - {
+                                      - label = "turns"
+                                    },
+                                ],
+                              - [
+                                  - "AWS/ApplicationELB",
+                                  - "RequestCount",
+                                  - "LoadBalancer",
+                                  - "app/collectionsinference/9d43e3c05a41b87a",
+                                  - {
+                                      - label = "ALB requests"
+                                    },
+                                ],
+                            ]
+                          - period  = 60
+                          - region  = "ap-southeast-2"
+                          - stat    = "Sum"
+                          - title   = "Request rate (turns/min)"
+                          - view    = "timeSeries"
+                        }
+                      - type       = "metric"
+                      - width      = 8
+                      - x          = 0
+                      - y          = 2
+                    },
+                  - {
+                      - height     = 6
+                      - properties = {
+                          - metrics = [
+                              - [
+                                  - {
+                                      - expression = "100 * IF(m1 > 0, m2 / m1, 0)"
+                                      - id         = "e1"
+                                      - label      = "degraded turns %"
+                                    },
+                                ],
+                              - [
+                                  - {
+                                      - expression = "100 * IF(m3 > 0, (m4 + m5) / m3, 0)"
+                                      - id         = "e2"
+                                      - label      = "HTTP 5xx % (target + ELB)"
+                                    },
+                                ],
+                              - [
+                                  - "CollectionsChallenge",
+                                  - "Turns",
+                                  - "ServiceName",
+                                  - "voice-agent",
+                                  - {
+                                      - id      = "m1"
+                                      - stat    = "Sum"
+                                      - visible = false
+                                    },
+                                ],
+                              - [
+                                  - "CollectionsChallenge",
+                                  - "TurnsDegraded",
+                                  - "ServiceName",
+                                  - "voice-agent",
+                                  - {
+                                      - id      = "m2"
+                                      - stat    = "Sum"
+                                      - visible = false
+                                    },
+                                ],
+                              - [
+                                  - "AWS/ApplicationELB",
+                                  - "RequestCount",
+                                  - "LoadBalancer",
+                                  - "app/collectionsinference/9d43e3c05a41b87a",
+                                  - {
+                                      - id      = "m3"
+                                      - stat    = "Sum"
+                                      - visible = false
+                                    },
+                                ],
+                              - [
+                                  - "AWS/ApplicationELB",
+                                  - "HTTPCode_Target_5XX_Count",
+                                  - "LoadBalancer",
+                                  - "app/collectionsinference/9d43e3c05a41b87a",
+                                  - {
+                                      - id      = "m4"
+                                      - stat    = "Sum"
+                                      - visible = false
+                                    },
+                                ],
+                              - [
+                                  - "AWS/ApplicationELB",
+                                  - "HTTPCode_ELB_5XX_Count",
+                                  - "LoadBalancer",
+                                  - "app/collectionsinference/9d43e3c05a41b87a",
+                                  - {
+                                      - id      = "m5"
+                                      - stat    = "Sum"
+                                      - visible = false
+                                    },
+                                ],
+                            ]
+                          - period  = 60
+                          - region  = "ap-southeast-2"
+                          - title   = "Error rate (%)"
+                          - view    = "timeSeries"
+                          - yAxis   = {
+                              - left = {
+                                  - min = 0
+                                }
+                            }
+                        }
+                      - type       = "metric"
+                      - width      = 8
+                      - x          = 8
+                      - y          = 2
+                    },
+                  - {
+                      - height     = 6
+                      - properties = {
+                          - annotations = {
+                              - horizontal = [
+                                  - {
+                                      - label = "3x baseline p99"
+                                      - value = 36000
+                                    },
+                                ]
+                            }
+                          - metrics     = [
+                              - [
+                                  - "CollectionsChallenge",
+                                  - "TurnLatency",
+                                  - "ServiceName",
+                                  - "voice-agent",
+                                  - {
+                                      - label = "p50"
+                                      - stat  = "p50"
+                                    },
+                                ],
+                              - [
+                                  - "CollectionsChallenge",
+                                  - "TurnLatency",
+                                  - "ServiceName",
+                                  - "voice-agent",
+                                  - {
+                                      - label = "p90"
+                                      - stat  = "p90"
+                                    },
+                                ],
+                              - [
+                                  - "CollectionsChallenge",
+                                  - "TurnLatency",
+                                  - "ServiceName",
+                                  - "voice-agent",
+                                  - {
+                                      - label = "p99"
+                                      - stat  = "p99"
+                                    },
+                                ],
+                            ]
+                          - period      = 60
+                          - region      = "ap-southeast-2"
+                          - title       = "Turn latency percentiles (ms)"
+                          - view        = "timeSeries"
+                        }
+                      - type       = "metric"
+                      - width      = 8
+                      - x          = 16
+                      - y          = 2
+                    },
+                  - {
+                      - height     = 6
+                      - properties = {
+                          - annotations = {
+                              - horizontal = [
+                                  - {
+                                      - label = "target"
+                                      - value = 2
+                                    },
+                                ]
+                            }
+                          - metrics     = [
+                              - [
+                                  - "CollectionsChallenge",
+                                  - "ActiveCalls",
+                                  - "ServiceName",
+                                  - "voice-agent",
+                                  - {
+                                      - label = "per task (target 2)"
+                                      - stat  = "Average"
+                                    },
+                                ],
+                              - [
+                                  - "CollectionsChallenge",
+                                  - "ActiveCalls",
+                                  - "ServiceName",
+                                  - "voice-agent",
+                                  - {
+                                      - label   = "sum of samples"
+                                      - stat    = "Sum"
+                                      - visible = false
+                                    },
+                                ],
+                              - [
+                                  - "CollectionsChallenge",
+                                  - "InFlightTurns",
+                                  - "ServiceName",
+                                  - "voice-agent",
+                                  - {
+                                      - label = "in-flight turns per task"
+                                      - stat  = "Average"
+                                    },
+                                ],
+                            ]
+                          - period      = 60
+                          - region      = "ap-southeast-2"
+                          - title       = "Active calls (scaling signal)"
+                          - view        = "timeSeries"
+                        }
+                      - type       = "metric"
+                      - width      = 8
+                      - x          = 0
+                      - y          = 8
+                    },
+                  - {
+                      - height     = 6
+                      - properties = {
+                          - metrics = [
+                              - [
+                                  - "ECS/ContainerInsights",
+                                  - "DesiredTaskCount",
+                                  - "ClusterName",
+                                  - "collectionsinference",
+                                  - "ServiceName",
+                                  - "voice-agent",
+                                  - {
+                                      - label = "desired"
+                                    },
+                                ],
+                              - [
+                                  - "ECS/ContainerInsights",
+                                  - "RunningTaskCount",
+                                  - "ClusterName",
+                                  - "collectionsinference",
+                                  - "ServiceName",
+                                  - "voice-agent",
+                                  - {
+                                      - label = "running"
+                                    },
+                                ],
+                            ]
+                          - period  = 60
+                          - region  = "ap-southeast-2"
+                          - stat    = "Average"
+                          - title   = "Tasks: desired vs running (autoscaling)"
+                          - view    = "timeSeries"
+                        }
+                      - type       = "metric"
+                      - width      = 8
+                      - x          = 8
+                      - y          = 8
+                    },
+                  - {
+                      - height     = 6
+                      - properties = {
+                          - metrics = [
+                              - [
+                                  - "AWS/ECS",
+                                  - "CPUUtilization",
+                                  - "ClusterName",
+                                  - "collectionsinference",
+                                  - "ServiceName",
+                                  - "voice-agent",
+                                ],
+                              - [
+                                  - "AWS/ECS",
+                                  - "MemoryUtilization",
+                                  - "ClusterName",
+                                  - "collectionsinference",
+                                  - "ServiceName",
+                                  - "voice-agent",
+                                ],
+                            ]
+                          - period  = 60
+                          - region  = "ap-southeast-2"
+                          - stat    = "Average"
+                          - title   = "Task CPU / memory (%)"
+                          - view    = "timeSeries"
+                        }
+                      - type       = "metric"
+                      - width      = 8
+                      - x          = 16
+                      - y          = 8
+                    },
+                  - {
+                      - height     = 6
+                      - properties = {
+                          - metrics = [
+                              - [
+                                  - "CollectionsChallenge",
+                                  - "ProviderFailures",
+                                  - "ServiceName",
+                                  - "voice-agent",
+                                  - "Stage",
+                                  - "llm",
+                                  - {
+                                      - label = "llm failures"
+                                    },
+                                ],
+                              - [
+                                  - "CollectionsChallenge",
+                                  - "ProviderFailures",
+                                  - "ServiceName",
+                                  - "voice-agent",
+                                  - "Stage",
+                                  - "stt",
+                                  - {
+                                      - label = "stt failures"
+                                    },
+                                ],
+                              - [
+                                  - "CollectionsChallenge",
+                                  - "ProviderFailures",
+                                  - "ServiceName",
+                                  - "voice-agent",
+                                  - "Stage",
+                                  - "tts",
+                                  - {
+                                      - label = "tts failures"
+                                    },
+                                ],
+                              - [
+                                  - "CollectionsChallenge",
+                                  - "Retries",
+                                  - "ServiceName",
+                                  - "voice-agent",
+                                  - "Stage",
+                                  - "llm",
+                                  - {
+                                      - label = "llm retries"
+                                    },
+                                ],
+                              - [
+                                  - "CollectionsChallenge",
+                                  - "Retries",
+                                  - "ServiceName",
+                                  - "voice-agent",
+                                  - "Stage",
+                                  - "stt",
+                                  - {
+                                      - label = "stt retries"
+                                    },
+                                ],
+                              - [
+                                  - "CollectionsChallenge",
+                                  - "Retries",
+                                  - "ServiceName",
+                                  - "voice-agent",
+                                  - "Stage",
+                                  - "tts",
+                                  - {
+                                      - label = "tts retries"
+                                    },
+                                ],
+                            ]
+                          - period  = 60
+                          - region  = "ap-southeast-2"
+                          - stat    = "Sum"
+                          - title   = "Provider failures by stage (attempts)"
+                          - view    = "timeSeries"
+                        }
+                      - type       = "metric"
+                      - width      = 8
+                      - x          = 0
+                      - y          = 14
+                    },
+                  - {
+                      - height     = 6
+                      - properties = {
+                          - metrics = [
+                              - [
+                                  - "CollectionsChallenge",
+                                  - "BreakerState",
+                                  - "ServiceName",
+                                  - "voice-agent",
+                                  - "Stage",
+                                  - "llm",
+                                  - {
+                                      - label = "llm"
+                                    },
+                                ],
+                              - [
+                                  - "CollectionsChallenge",
+                                  - "BreakerState",
+                                  - "ServiceName",
+                                  - "voice-agent",
+                                  - "Stage",
+                                  - "stt",
+                                  - {
+                                      - label = "stt"
+                                    },
+                                ],
+                              - [
+                                  - "CollectionsChallenge",
+                                  - "BreakerState",
+                                  - "ServiceName",
+                                  - "voice-agent",
+                                  - "Stage",
+                                  - "tts",
+                                  - {
+                                      - label = "tts"
+                                    },
+                                ],
+                            ]
+                          - period  = 60
+                          - region  = "ap-southeast-2"
+                          - stat    = "Maximum"
+                          - title   = "Circuit breakers (0 closed, 1 half-open, 2 open)"
+                          - view    = "timeSeries"
+                          - yAxis   = {
+                              - left = {
+                                  - max = 2
+                                  - min = 0
+                                }
+                            }
+                        }
+                      - type       = "metric"
+                      - width      = 8
+                      - x          = 8
+                      - y          = 14
+                    },
+                  - {
+                      - height     = 6
+                      - properties = {
+                          - metrics = [
+                              - [
+                                  - "CollectionsChallenge",
+                                  - "DlqPending",
+                                  - "ServiceName",
+                                  - "voice-agent",
+                                  - {
+                                      - label = "pending"
+                                      - stat  = "Maximum"
+                                    },
+                                ],
+                              - [
+                                  - "CollectionsChallenge",
+                                  - "DeadLetters",
+                                  - "ServiceName",
+                                  - "voice-agent",
+                                  - {
+                                      - label = "new per min"
+                                      - stat  = "Sum"
+                                    },
+                                ],
+                              - [
+                                  - "CollectionsChallenge",
+                                  - "ReplaysResolved",
+                                  - "ServiceName",
+                                  - "voice-agent",
+                                  - {
+                                      - label = "resolved by replay"
+                                      - stat  = "Sum"
+                                    },
+                                ],
+                            ]
+                          - period  = 60
+                          - region  = "ap-southeast-2"
+                          - title   = "Dead-letter queue"
+                          - view    = "timeSeries"
+                        }
+                      - type       = "metric"
+                      - width      = 8
+                      - x          = 16
+                      - y          = 14
+                    },
+                  - {
+                      - height     = 6
+                      - properties = {
+                          - metrics = [
+                              - [
+                                  - "AWS/NetworkELB",
+                                  - "HealthyHostCount",
+                                  - "TargetGroup",
+                                  - "targetgroup/collectionsinference-models-cpu/6336b79c46e85604",
+                                  - "LoadBalancer",
+                                  - "net/collectionsinference-models/e204f73fdf80ecd9",
+                                ],
+                            ]
+                          - period  = 60
+                          - region  = "ap-southeast-2"
+                          - stat    = "Minimum"
+                          - title   = "Model tier health (NLB healthy hosts)"
+                          - view    = "timeSeries"
+                        }
+                      - type       = "metric"
+                      - width      = 8
+                      - x          = 0
+                      - y          = 20
+                    },
+                  - {
+                      - height     = 6
+                      - properties = {
+                          - query  = "SOURCE '/aws/events/collectionsinference' | fields @timestamp, `detail-type`, detail.group, detail.lastStatus, detail.eventName, detail.alarmName, detail.state.value | sort @timestamp desc | limit 50"
+                          - region = "ap-southeast-2"
+                          - title  = "Autoscaling and task events"
+                          - view   = "table"
+                        }
+                      - type       = "log"
+                      - width      = 16
+                      - x          = 8
+                      - y          = 20
+                    },
+                ]
+            }
+        ) -> null
+      - dashboard_name = "collectionsinference" -> null
+      - id             = "collectionsinference" -> null
+      - region         = "ap-southeast-2" -> null
+    }
+
+  # aws_cloudwatch_event_rule.ecs will be destroyed
+  - resource "aws_cloudwatch_event_rule" "ecs" {
+      - arn                 = "arn:aws:events:ap-southeast-2:421482181886:rule/collectionsinference-ecs-events" -> null
+      - event_bus_name      = "default" -> null
+      - event_pattern       = jsonencode(
+            {
+              - "$or"  = [
+                  - {
+                      - detail      = {
+                          - clusterArn = [
+                              - "arn:aws:ecs:ap-southeast-2:421482181886:cluster/collectionsinference",
+                            ]
+                        }
+                      - detail-type = [
+                          - "ECS Task State Change",
+                          - "ECS Service Action",
+                        ]
+                    },
+                  - {
+                      - detail-type = [
+                          - "ECS Deployment State Change",
+                        ]
+                      - resources   = [
+                          - {
+                              - prefix = "arn:aws:ecs:ap-southeast-2:421482181886:service/collectionsinference/voice-agent"
+                            },
+                        ]
+                    },
+                ]
+              - source = [
+                  - "aws.ecs",
+                ]
+            }
+        ) -> null
+      - force_destroy       = false -> null
+      - id                  = "collectionsinference-ecs-events" -> null
+      - is_enabled          = true -> null
+      - name                = "collectionsinference-ecs-events" -> null
+      - region              = "ap-southeast-2" -> null
+      - state               = "ENABLED" -> null
+      - tags                = {} -> null
+      - tags_all            = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+        # (4 unchanged attributes hidden)
+    }
+
+  # aws_cloudwatch_event_rule.scaling_alarms will be destroyed
+  - resource "aws_cloudwatch_event_rule" "scaling_alarms" {
+      - arn                 = "arn:aws:events:ap-southeast-2:421482181886:rule/collectionsinference-scaling-alarms" -> null
+      - event_bus_name      = "default" -> null
+      - event_pattern       = jsonencode(
+            {
+              - detail      = {
+                  - alarmName = [
+                      - {
+                          - prefix = "TargetTracking-service/collectionsinference/voice-agent"
+                        },
+                    ]
+                }
+              - detail-type = [
+                  - "CloudWatch Alarm State Change",
+                ]
+              - source      = [
+                  - "aws.cloudwatch",
+                ]
+            }
+        ) -> null
+      - force_destroy       = false -> null
+      - id                  = "collectionsinference-scaling-alarms" -> null
+      - is_enabled          = true -> null
+      - name                = "collectionsinference-scaling-alarms" -> null
+      - region              = "ap-southeast-2" -> null
+      - state               = "ENABLED" -> null
+      - tags                = {} -> null
+      - tags_all            = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+        # (4 unchanged attributes hidden)
+    }
+
+  # aws_cloudwatch_event_target.ecs_to_logs will be destroyed
+  - resource "aws_cloudwatch_event_target" "ecs_to_logs" {
+      - arn            = "arn:aws:logs:ap-southeast-2:421482181886:log-group:/aws/events/collectionsinference" -> null
+      - event_bus_name = "default" -> null
+      - force_destroy  = false -> null
+      - id             = "collectionsinference-ecs-events-terraform-ud7W3y8zRRlNsBgO8OaqOGs9Vi" -> null
+      - region         = "ap-southeast-2" -> null
+      - rule           = "collectionsinference-ecs-events" -> null
+      - target_id      = "terraform-ud7W3y8zRRlNsBgO8OaqOGs9Vi" -> null
+        # (3 unchanged attributes hidden)
+    }
+
+  # aws_cloudwatch_event_target.scaling_alarms_to_logs will be destroyed
+  - resource "aws_cloudwatch_event_target" "scaling_alarms_to_logs" {
+      - arn            = "arn:aws:logs:ap-southeast-2:421482181886:log-group:/aws/events/collectionsinference" -> null
+      - event_bus_name = "default" -> null
+      - force_destroy  = false -> null
+      - id             = "collectionsinference-scaling-alarms-terraform-IpGMiE9PTtF39G5SkrB9qk8oxK" -> null
+      - region         = "ap-southeast-2" -> null
+      - rule           = "collectionsinference-scaling-alarms" -> null
+      - target_id      = "terraform-IpGMiE9PTtF39G5SkrB9qk8oxK" -> null
+        # (3 unchanged attributes hidden)
+    }
+
+  # aws_cloudwatch_log_group.app will be destroyed
+  - resource "aws_cloudwatch_log_group" "app" {
+      - arn                         = "arn:aws:logs:ap-southeast-2:421482181886:log-group:/ecs/collectionsinference" -> null
+      - deletion_protection_enabled = false -> null
+      - id                          = "/ecs/collectionsinference" -> null
+      - log_group_class             = "STANDARD" -> null
+      - name                        = "/ecs/collectionsinference" -> null
+      - region                      = "ap-southeast-2" -> null
+      - retention_in_days           = 7 -> null
+      - skip_destroy                = false -> null
+      - tags                        = {} -> null
+      - tags_all                    = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+        # (2 unchanged attributes hidden)
+    }
+
+  # aws_cloudwatch_log_group.container_insights will be destroyed
+  - resource "aws_cloudwatch_log_group" "container_insights" {
+      - arn                         = "arn:aws:logs:ap-southeast-2:421482181886:log-group:/aws/ecs/containerinsights/collectionsinference/performance" -> null
+      - deletion_protection_enabled = false -> null
+      - id                          = "/aws/ecs/containerinsights/collectionsinference/performance" -> null
+      - log_group_class             = "STANDARD" -> null
+      - name                        = "/aws/ecs/containerinsights/collectionsinference/performance" -> null
+      - region                      = "ap-southeast-2" -> null
+      - retention_in_days           = 7 -> null
+      - skip_destroy                = false -> null
+      - tags                        = {} -> null
+      - tags_all                    = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+        # (2 unchanged attributes hidden)
+    }
+
+  # aws_cloudwatch_log_group.events will be destroyed
+  - resource "aws_cloudwatch_log_group" "events" {
+      - arn                         = "arn:aws:logs:ap-southeast-2:421482181886:log-group:/aws/events/collectionsinference" -> null
+      - deletion_protection_enabled = false -> null
+      - id                          = "/aws/events/collectionsinference" -> null
+      - log_group_class             = "STANDARD" -> null
+      - name                        = "/aws/events/collectionsinference" -> null
+      - region                      = "ap-southeast-2" -> null
+      - retention_in_days           = 7 -> null
+      - skip_destroy                = false -> null
+      - tags                        = {} -> null
+      - tags_all                    = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+        # (2 unchanged attributes hidden)
+    }
+
+  # aws_cloudwatch_log_group.model_host will be destroyed
+  - resource "aws_cloudwatch_log_group" "model_host" {
+      - arn                         = "arn:aws:logs:ap-southeast-2:421482181886:log-group:/models/collectionsinference" -> null
+      - deletion_protection_enabled = false -> null
+      - id                          = "/models/collectionsinference" -> null
+      - log_group_class             = "STANDARD" -> null
+      - name                        = "/models/collectionsinference" -> null
+      - region                      = "ap-southeast-2" -> null
+      - retention_in_days           = 7 -> null
+      - skip_destroy                = false -> null
+      - tags                        = {} -> null
+      - tags_all                    = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+        # (2 unchanged attributes hidden)
+    }
+
+  # aws_cloudwatch_log_resource_policy.events will be destroyed
+  - resource "aws_cloudwatch_log_resource_policy" "events" {
+      - id              = "collectionsinference-events" -> null
+      - policy_document = jsonencode(
+            {
+              - Statement = [
+                  - {
+                      - Action    = [
+                          - "logs:PutLogEvents",
+                          - "logs:CreateLogStream",
+                        ]
+                      - Effect    = "Allow"
+                      - Principal = {
+                          - Service = [
+                              - "events.amazonaws.com",
+                              - "delivery.logs.amazonaws.com",
+                            ]
+                        }
+                      - Resource  = "arn:aws:logs:ap-southeast-2:421482181886:log-group:/aws/events/collectionsinference:*"
+                    },
+                ]
+              - Version   = "2012-10-17"
+            }
+        ) -> null
+      - policy_name     = "collectionsinference-events" -> null
+      - policy_scope    = "ACCOUNT" -> null
+      - region          = "ap-southeast-2" -> null
+        # (2 unchanged attributes hidden)
+    }
+
+  # aws_cloudwatch_metric_alarm.breaker_open["llm"] will be destroyed
+  - resource "aws_cloudwatch_metric_alarm" "breaker_open" {
+      - actions_enabled                       = true -> null
+      - alarm_actions                         = [
+          - "arn:aws:sns:ap-southeast-2:421482181886:collectionsinference-alarms",
+        ] -> null
+      - alarm_description                     = "The llm circuit breaker is open on at least one task: dependency outage." -> null
+      - alarm_name                            = "collectionsinference-breaker-open-llm" -> null
+      - arn                                   = "arn:aws:cloudwatch:ap-southeast-2:421482181886:alarm:collectionsinference-breaker-open-llm" -> null
+      - comparison_operator                   = "GreaterThanOrEqualToThreshold" -> null
+      - datapoints_to_alarm                   = 0 -> null
+      - dimensions                            = {
+          - "ServiceName" = "voice-agent"
+          - "Stage"       = "llm"
+        } -> null
+      - evaluation_interval                   = 0 -> null
+      - evaluation_periods                    = 1 -> null
+      - id                                    = "collectionsinference-breaker-open-llm" -> null
+      - insufficient_data_actions             = [] -> null
+      - metric_name                           = "BreakerState" -> null
+      - namespace                             = "CollectionsChallenge" -> null
+      - ok_actions                            = [
+          - "arn:aws:sns:ap-southeast-2:421482181886:collectionsinference-alarms",
+        ] -> null
+      - period                                = 60 -> null
+      - region                                = "ap-southeast-2" -> null
+      - statistic                             = "Maximum" -> null
+      - tags                                  = {} -> null
+      - tags_all                              = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - threshold                             = 2 -> null
+      - treat_missing_data                    = "notBreaching" -> null
+        # (4 unchanged attributes hidden)
+    }
+
+  # aws_cloudwatch_metric_alarm.breaker_open["stt"] will be destroyed
+  - resource "aws_cloudwatch_metric_alarm" "breaker_open" {
+      - actions_enabled                       = true -> null
+      - alarm_actions                         = [
+          - "arn:aws:sns:ap-southeast-2:421482181886:collectionsinference-alarms",
+        ] -> null
+      - alarm_description                     = "The stt circuit breaker is open on at least one task: dependency outage." -> null
+      - alarm_name                            = "collectionsinference-breaker-open-stt" -> null
+      - arn                                   = "arn:aws:cloudwatch:ap-southeast-2:421482181886:alarm:collectionsinference-breaker-open-stt" -> null
+      - comparison_operator                   = "GreaterThanOrEqualToThreshold" -> null
+      - datapoints_to_alarm                   = 0 -> null
+      - dimensions                            = {
+          - "ServiceName" = "voice-agent"
+          - "Stage"       = "stt"
+        } -> null
+      - evaluation_interval                   = 0 -> null
+      - evaluation_periods                    = 1 -> null
+      - id                                    = "collectionsinference-breaker-open-stt" -> null
+      - insufficient_data_actions             = [] -> null
+      - metric_name                           = "BreakerState" -> null
+      - namespace                             = "CollectionsChallenge" -> null
+      - ok_actions                            = [
+          - "arn:aws:sns:ap-southeast-2:421482181886:collectionsinference-alarms",
+        ] -> null
+      - period                                = 60 -> null
+      - region                                = "ap-southeast-2" -> null
+      - statistic                             = "Maximum" -> null
+      - tags                                  = {} -> null
+      - tags_all                              = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - threshold                             = 2 -> null
+      - treat_missing_data                    = "notBreaching" -> null
+        # (4 unchanged attributes hidden)
+    }
+
+  # aws_cloudwatch_metric_alarm.breaker_open["tts"] will be destroyed
+  - resource "aws_cloudwatch_metric_alarm" "breaker_open" {
+      - actions_enabled                       = true -> null
+      - alarm_actions                         = [
+          - "arn:aws:sns:ap-southeast-2:421482181886:collectionsinference-alarms",
+        ] -> null
+      - alarm_description                     = "The tts circuit breaker is open on at least one task: dependency outage." -> null
+      - alarm_name                            = "collectionsinference-breaker-open-tts" -> null
+      - arn                                   = "arn:aws:cloudwatch:ap-southeast-2:421482181886:alarm:collectionsinference-breaker-open-tts" -> null
+      - comparison_operator                   = "GreaterThanOrEqualToThreshold" -> null
+      - datapoints_to_alarm                   = 0 -> null
+      - dimensions                            = {
+          - "ServiceName" = "voice-agent"
+          - "Stage"       = "tts"
+        } -> null
+      - evaluation_interval                   = 0 -> null
+      - evaluation_periods                    = 1 -> null
+      - id                                    = "collectionsinference-breaker-open-tts" -> null
+      - insufficient_data_actions             = [] -> null
+      - metric_name                           = "BreakerState" -> null
+      - namespace                             = "CollectionsChallenge" -> null
+      - ok_actions                            = [
+          - "arn:aws:sns:ap-southeast-2:421482181886:collectionsinference-alarms",
+        ] -> null
+      - period                                = 60 -> null
+      - region                                = "ap-southeast-2" -> null
+      - statistic                             = "Maximum" -> null
+      - tags                                  = {} -> null
+      - tags_all                              = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - threshold                             = 2 -> null
+      - treat_missing_data                    = "notBreaching" -> null
+        # (4 unchanged attributes hidden)
+    }
+
+  # aws_cloudwatch_metric_alarm.dlq_pending will be destroyed
+  - resource "aws_cloudwatch_metric_alarm" "dlq_pending" {
+      - actions_enabled                       = true -> null
+      - alarm_actions                         = [
+          - "arn:aws:sns:ap-southeast-2:421482181886:collectionsinference-alarms",
+        ] -> null
+      - alarm_description                     = "Dead letters are piling up: replay once the dependency recovers (RUNBOOK.md)." -> null
+      - alarm_name                            = "collectionsinference-dlq-pending" -> null
+      - arn                                   = "arn:aws:cloudwatch:ap-southeast-2:421482181886:alarm:collectionsinference-dlq-pending" -> null
+      - comparison_operator                   = "GreaterThanThreshold" -> null
+      - datapoints_to_alarm                   = 0 -> null
+      - dimensions                            = {
+          - "ServiceName" = "voice-agent"
+        } -> null
+      - evaluation_interval                   = 0 -> null
+      - evaluation_periods                    = 5 -> null
+      - id                                    = "collectionsinference-dlq-pending" -> null
+      - insufficient_data_actions             = [] -> null
+      - metric_name                           = "DlqPending" -> null
+      - namespace                             = "CollectionsChallenge" -> null
+      - ok_actions                            = [] -> null
+      - period                                = 60 -> null
+      - region                                = "ap-southeast-2" -> null
+      - statistic                             = "Maximum" -> null
+      - tags                                  = {} -> null
+      - tags_all                              = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - threshold                             = 50 -> null
+      - treat_missing_data                    = "notBreaching" -> null
+        # (4 unchanged attributes hidden)
+    }
+
+  # aws_cloudwatch_metric_alarm.elb_5xx will be destroyed
+  - resource "aws_cloudwatch_metric_alarm" "elb_5xx" {
+      - actions_enabled                       = true -> null
+      - alarm_actions                         = [
+          - "arn:aws:sns:ap-southeast-2:421482181886:collectionsinference-alarms",
+        ] -> null
+      - alarm_description                     = "The ALB itself returned 5xx (no healthy targets, or targets closing connections)." -> null
+      - alarm_name                            = "collectionsinference-elb-5xx" -> null
+      - arn                                   = "arn:aws:cloudwatch:ap-southeast-2:421482181886:alarm:collectionsinference-elb-5xx" -> null
+      - comparison_operator                   = "GreaterThanThreshold" -> null
+      - datapoints_to_alarm                   = 0 -> null
+      - dimensions                            = {
+          - "LoadBalancer" = "app/collectionsinference/9d43e3c05a41b87a"
+        } -> null
+      - evaluation_interval                   = 0 -> null
+      - evaluation_periods                    = 2 -> null
+      - id                                    = "collectionsinference-elb-5xx" -> null
+      - insufficient_data_actions             = [] -> null
+      - metric_name                           = "HTTPCode_ELB_5XX_Count" -> null
+      - namespace                             = "AWS/ApplicationELB" -> null
+      - ok_actions                            = [] -> null
+      - period                                = 60 -> null
+      - region                                = "ap-southeast-2" -> null
+      - statistic                             = "Sum" -> null
+      - tags                                  = {} -> null
+      - tags_all                              = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - threshold                             = 5 -> null
+      - treat_missing_data                    = "notBreaching" -> null
+        # (4 unchanged attributes hidden)
+    }
+
+  # aws_cloudwatch_metric_alarm.p99_latency will be destroyed
+  - resource "aws_cloudwatch_metric_alarm" "p99_latency" {
+      - actions_enabled                       = true -> null
+      - alarm_actions                         = [
+          - "arn:aws:sns:ap-southeast-2:421482181886:collectionsinference-alarms",
+        ] -> null
+      - alarm_description                     = "RUNBOOK trigger: p99 turn latency > 3x baseline. See RUNBOOK.md." -> null
+      - alarm_name                            = "collectionsinference-p99-latency-3x-baseline" -> null
+      - arn                                   = "arn:aws:cloudwatch:ap-southeast-2:421482181886:alarm:collectionsinference-p99-latency-3x-baseline" -> null
+      - comparison_operator                   = "GreaterThanThreshold" -> null
+      - datapoints_to_alarm                   = 3 -> null
+      - dimensions                            = {
+          - "ServiceName" = "voice-agent"
+        } -> null
+      - evaluation_interval                   = 0 -> null
+      - evaluation_periods                    = 3 -> null
+      - extended_statistic                    = "p99" -> null
+      - id                                    = "collectionsinference-p99-latency-3x-baseline" -> null
+      - insufficient_data_actions             = [] -> null
+      - metric_name                           = "TurnLatency" -> null
+      - namespace                             = "CollectionsChallenge" -> null
+      - ok_actions                            = [
+          - "arn:aws:sns:ap-southeast-2:421482181886:collectionsinference-alarms",
+        ] -> null
+      - period                                = 60 -> null
+      - region                                = "ap-southeast-2" -> null
+      - tags                                  = {} -> null
+      - tags_all                              = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - threshold                             = 36000 -> null
+      - treat_missing_data                    = "notBreaching" -> null
+        # (4 unchanged attributes hidden)
+    }
+
+  # aws_cloudwatch_metric_alarm.target_5xx will be destroyed
+  - resource "aws_cloudwatch_metric_alarm" "target_5xx" {
+      - actions_enabled                       = true -> null
+      - alarm_actions                         = [
+          - "arn:aws:sns:ap-southeast-2:421482181886:collectionsinference-alarms",
+        ] -> null
+      - alarm_description                     = "The service itself returned 5xx (degraded turns are 200s; this should stay 0)." -> null
+      - alarm_name                            = "collectionsinference-http-5xx" -> null
+      - arn                                   = "arn:aws:cloudwatch:ap-southeast-2:421482181886:alarm:collectionsinference-http-5xx" -> null
+      - comparison_operator                   = "GreaterThanThreshold" -> null
+      - datapoints_to_alarm                   = 0 -> null
+      - dimensions                            = {
+          - "LoadBalancer" = "app/collectionsinference/9d43e3c05a41b87a"
+          - "TargetGroup"  = "targetgroup/collectionsinference-app/9a2c6896484c3c1e"
+        } -> null
+      - evaluation_interval                   = 0 -> null
+      - evaluation_periods                    = 2 -> null
+      - id                                    = "collectionsinference-http-5xx" -> null
+      - insufficient_data_actions             = [] -> null
+      - metric_name                           = "HTTPCode_Target_5XX_Count" -> null
+      - namespace                             = "AWS/ApplicationELB" -> null
+      - ok_actions                            = [] -> null
+      - period                                = 60 -> null
+      - region                                = "ap-southeast-2" -> null
+      - statistic                             = "Sum" -> null
+      - tags                                  = {} -> null
+      - tags_all                              = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - threshold                             = 5 -> null
+      - treat_missing_data                    = "notBreaching" -> null
+        # (4 unchanged attributes hidden)
+    }
+
+  # aws_dynamodb_table.state will be destroyed
+  - resource "aws_dynamodb_table" "state" {
+      - arn                         = "arn:aws:dynamodb:ap-southeast-2:421482181886:table/collectionsinference-state" -> null
+      - billing_mode                = "PAY_PER_REQUEST" -> null
+      - deletion_protection_enabled = false -> null
+      - hash_key                    = "pk" -> null
+      - id                          = "collectionsinference-state" -> null
+      - name                        = "collectionsinference-state" -> null
+      - range_key                   = "sk" -> null
+      - read_capacity               = 0 -> null
+      - region                      = "ap-southeast-2" -> null
+      - stream_enabled              = false -> null
+      - table_class                 = "STANDARD" -> null
+      - tags                        = {} -> null
+      - tags_all                    = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - write_capacity              = 0 -> null
+        # (3 unchanged attributes hidden)
+
+      - attribute {
+          - name = "gsi1pk" -> null
+          - type = "S" -> null
+        }
+      - attribute {
+          - name = "gsi1sk" -> null
+          - type = "S" -> null
+        }
+      - attribute {
+          - name = "pk" -> null
+          - type = "S" -> null
+        }
+      - attribute {
+          - name = "sk" -> null
+          - type = "S" -> null
+        }
+
+      - global_secondary_index {
+          - hash_key           = "gsi1pk" -> null
+          - name               = "by_status" -> null
+          - non_key_attributes = [
+              - "call_id",
+              - "claimed_at",
+              - "created_at",
+              - "error_kind",
+              - "failed_stage",
+              - "id",
+              - "reason",
+              - "replay_count",
+              - "status",
+              - "turn_id",
+              - "updated_at",
+            ] -> null
+          - projection_type    = "INCLUDE" -> null
+          - range_key          = "gsi1sk" -> null
+          - read_capacity      = 0 -> null
+          - write_capacity     = 0 -> null
+
+          - key_schema {
+              - attribute_name = "gsi1pk" -> null
+              - key_type       = "HASH" -> null
+            }
+          - key_schema {
+              - attribute_name = "gsi1sk" -> null
+              - key_type       = "RANGE" -> null
+            }
+        }
+
+      - point_in_time_recovery {
+          - enabled                 = true -> null
+          - recovery_period_in_days = 35 -> null
+        }
+
+      - server_side_encryption {
+          - enabled     = true -> null
+            # (1 unchanged attribute hidden)
+        }
+
+      - ttl {
+          - enabled        = false -> null
+            # (1 unchanged attribute hidden)
+        }
+    }
+
+  # aws_ecr_lifecycle_policy.app will be destroyed
+  - resource "aws_ecr_lifecycle_policy" "app" {
+      - id          = "collectionsinference" -> null
+      - policy      = jsonencode(
+            {
+              - rules = [
+                  - {
+                      - action       = {
+                          - type = "expire"
+                        }
+                      - description  = "keep the last 5 images"
+                      - rulePriority = 1
+                      - selection    = {
+                          - countNumber = 5
+                          - countType   = "imageCountMoreThan"
+                          - tagStatus   = "any"
+                        }
+                    },
+                ]
+            }
+        ) -> null
+      - region      = "ap-southeast-2" -> null
+      - registry_id = "421482181886" -> null
+      - repository  = "collectionsinference" -> null
+    }
+
+  # aws_ecr_repository.app will be destroyed
+  - resource "aws_ecr_repository" "app" {
+      - arn                  = "arn:aws:ecr:ap-southeast-2:421482181886:repository/collectionsinference" -> null
+      - force_delete         = true -> null
+      - id                   = "collectionsinference" -> null
+      - image_tag_mutability = "IMMUTABLE" -> null
+      - name                 = "collectionsinference" -> null
+      - region               = "ap-southeast-2" -> null
+      - registry_id          = "421482181886" -> null
+      - repository_url       = "421482181886.dkr.ecr.ap-southeast-2.amazonaws.com/collectionsinference" -> null
+      - tags                 = {} -> null
+      - tags_all             = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+
+      - encryption_configuration {
+          - encryption_type = "AES256" -> null
+            # (1 unchanged attribute hidden)
+        }
+
+      - image_scanning_configuration {
+          - scan_on_push = true -> null
+        }
+    }
+
+  # aws_ecs_cluster.main will be destroyed
+  - resource "aws_ecs_cluster" "main" {
+      - arn      = "arn:aws:ecs:ap-southeast-2:421482181886:cluster/collectionsinference" -> null
+      - id       = "arn:aws:ecs:ap-southeast-2:421482181886:cluster/collectionsinference" -> null
+      - name     = "collectionsinference" -> null
+      - region   = "ap-southeast-2" -> null
+      - tags     = {} -> null
+      - tags_all = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+
+      - setting {
+          - name  = "containerInsights" -> null
+          - value = "enabled" -> null
+        }
+    }
+
+  # aws_ecs_service.app will be destroyed
+  - resource "aws_ecs_service" "app" {
+      - arn                                = "arn:aws:ecs:ap-southeast-2:421482181886:service/collectionsinference/voice-agent" -> null
+      - availability_zone_rebalancing      = "ENABLED" -> null
+      - cluster                            = "arn:aws:ecs:ap-southeast-2:421482181886:cluster/collectionsinference" -> null
+      - deployment_maximum_percent         = 200 -> null
+      - deployment_minimum_healthy_percent = 100 -> null
+      - desired_count                      = 2 -> null
+      - enable_ecs_managed_tags            = false -> null
+      - enable_execute_command             = false -> null
+      - health_check_grace_period_seconds  = 30 -> null
+      - iam_role                           = "/aws-service-role/ecs.amazonaws.com/AWSServiceRoleForECS" -> null
+      - id                                 = "arn:aws:ecs:ap-southeast-2:421482181886:service/collectionsinference/voice-agent" -> null
+      - launch_type                        = "FARGATE" -> null
+      - name                               = "voice-agent" -> null
+      - platform_version                   = "LATEST" -> null
+      - propagate_tags                     = "SERVICE" -> null
+      - region                             = "ap-southeast-2" -> null
+      - scheduling_strategy                = "REPLICA" -> null
+      - tags                               = {} -> null
+      - tags_all                           = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - task_definition                    = "arn:aws:ecs:ap-southeast-2:421482181886:task-definition/voice-agent:1" -> null
+      - triggers                           = {} -> null
+      - wait_for_steady_state              = true -> null
+
+      - deployment_circuit_breaker {
+          - enable   = true -> null
+          - rollback = true -> null
+        }
+
+      - deployment_configuration {
+          - bake_time_in_minutes = "0" -> null
+          - strategy             = "ROLLING" -> null
+        }
+
+      - deployment_controller {
+          - type = "ECS" -> null
+        }
+
+      - load_balancer {
+          - container_name   = "voice-agent" -> null
+          - container_port   = 8080 -> null
+          - target_group_arn = "arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:targetgroup/collectionsinference-app/9a2c6896484c3c1e" -> null
+            # (1 unchanged attribute hidden)
+        }
+
+      - network_configuration {
+          - assign_public_ip = false -> null
+          - security_groups  = [
+              - "sg-054c1a416ca59bc6b",
+            ] -> null
+          - subnets          = [
+              - "subnet-046697c7f26b34369",
+              - "subnet-083c5e6b582be9fed",
+            ] -> null
+        }
+    }
+
+  # aws_ecs_task_definition.app will be destroyed
+  - resource "aws_ecs_task_definition" "app" {
+      - arn                      = "arn:aws:ecs:ap-southeast-2:421482181886:task-definition/voice-agent:1" -> null
+      - arn_without_revision     = "arn:aws:ecs:ap-southeast-2:421482181886:task-definition/voice-agent" -> null
+      - container_definitions    = jsonencode(
+            [
+              - {
+                  - command          = [
+                      - "voice-agent",
+                      - "serve",
+                    ]
+                  - environment      = [
+                      - {
+                          - name  = "AWS_REGION"
+                          - value = "ap-southeast-2"
+                        },
+                      - {
+                          - name  = "DYNAMODB_TABLE"
+                          - value = "collectionsinference-state"
+                        },
+                      - {
+                          - name  = "EMF_ENABLED"
+                          - value = "true"
+                        },
+                      - {
+                          - name  = "EMF_NAMESPACE"
+                          - value = "CollectionsChallenge"
+                        },
+                      - {
+                          - name  = "EMF_SERVICE_NAME"
+                          - value = "voice-agent"
+                        },
+                      - {
+                          - name  = "HOST"
+                          - value = "0.0.0.0"
+                        },
+                      - {
+                          - name  = "LLM_BASE_URL"
+                          - value = "http://collectionsinference-models-e204f73fdf80ecd9.elb.ap-southeast-2.amazonaws.com:8080/v1"
+                        },
+                      - {
+                          - name  = "LLM_MAX_TOKENS"
+                          - value = "40"
+                        },
+                      - {
+                          - name  = "LLM_MODEL"
+                          - value = "qwen2.5-1.5b-instruct"
+                        },
+                      - {
+                          - name  = "LLM_PROVIDER"
+                          - value = "openai"
+                        },
+                      - {
+                          - name  = "LLM_TIMEOUT_S"
+                          - value = "15"
+                        },
+                      - {
+                          - name  = "LOG_LEVEL"
+                          - value = "INFO"
+                        },
+                      - {
+                          - name  = "PORT"
+                          - value = "8080"
+                        },
+                      - {
+                          - name  = "STORE_BACKEND"
+                          - value = "dynamodb"
+                        },
+                      - {
+                          - name  = "STT_BASE_URL"
+                          - value = "http://collectionsinference-models-e204f73fdf80ecd9.elb.ap-southeast-2.amazonaws.com:8080/v1"
+                        },
+                      - {
+                          - name  = "STT_MODEL"
+                          - value = "Systran/faster-whisper-tiny.en"
+                        },
+                      - {
+                          - name  = "STT_PROVIDER"
+                          - value = "openai"
+                        },
+                      - {
+                          - name  = "STT_TIMEOUT_S"
+                          - value = "8"
+                        },
+                      - {
+                          - name  = "TTS_BASE_URL"
+                          - value = "http://collectionsinference-models-e204f73fdf80ecd9.elb.ap-southeast-2.amazonaws.com:8080/v1"
+                        },
+                      - {
+                          - name  = "TTS_MODEL"
+                          - value = "speaches-ai/Kokoro-82M-v1.0-ONNX"
+                        },
+                      - {
+                          - name  = "TTS_PROVIDER"
+                          - value = "openai"
+                        },
+                      - {
+                          - name  = "TTS_TIMEOUT_S"
+                          - value = "12"
+                        },
+                      - {
+                          - name  = "TTS_VOICE"
+                          - value = "af_heart"
+                        },
+                      - {
+                          - name  = "TURN_DEADLINE_S"
+                          - value = "35"
+                        },
+                    ]
+                  - essential        = true
+                  - image            = "421482181886.dkr.ecr.ap-southeast-2.amazonaws.com/collectionsinference@sha256:748346b75c518584d80ed9837082b2623f095fbf2feaedb191474646b95abd11"
+                  - logConfiguration = {
+                      - logDriver = "awslogs"
+                      - options   = {
+                          - awslogs-group         = "/ecs/collectionsinference"
+                          - awslogs-region        = "ap-southeast-2"
+                          - awslogs-stream-prefix = "voice-agent"
+                        }
+                    }
+                  - mountPoints      = []
+                  - name             = "voice-agent"
+                  - portMappings     = [
+                      - {
+                          - containerPort = 8080
+                          - hostPort      = 8080
+                          - protocol      = "tcp"
+                        },
+                    ]
+                  - stopTimeout      = 30
+                  - systemControls   = []
+                  - volumesFrom      = []
+                },
+            ]
+        ) -> null
+      - cpu                      = "512" -> null
+      - enable_fault_injection   = false -> null
+      - execution_role_arn       = "arn:aws:iam::421482181886:role/collectionsinference-execution" -> null
+      - family                   = "voice-agent" -> null
+      - id                       = "voice-agent" -> null
+      - memory                   = "1024" -> null
+      - network_mode             = "awsvpc" -> null
+      - region                   = "ap-southeast-2" -> null
+      - requires_compatibilities = [
+          - "FARGATE",
+        ] -> null
+      - revision                 = 1 -> null
+      - skip_destroy             = false -> null
+      - tags                     = {} -> null
+      - tags_all                 = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - task_role_arn            = "arn:aws:iam::421482181886:role/collectionsinference-task" -> null
+      - track_latest             = false -> null
+        # (2 unchanged attributes hidden)
+
+      - runtime_platform {
+          - cpu_architecture        = "X86_64" -> null
+          - operating_system_family = "LINUX" -> null
+        }
+    }
+
+  # aws_eip.nat will be destroyed
+  - resource "aws_eip" "nat" {
+      - allocation_id            = "eipalloc-02515f4f681a5b7b1" -> null
+      - arn                      = "arn:aws:ec2:ap-southeast-2:421482181886:elastic-ip/eipalloc-02515f4f681a5b7b1" -> null
+      - association_id           = "eipassoc-066e17623726ca9db" -> null
+      - domain                   = "vpc" -> null
+      - id                       = "eipalloc-02515f4f681a5b7b1" -> null
+      - network_border_group     = "ap-southeast-2" -> null
+      - network_interface        = "eni-075a4cf49fd7b3547" -> null
+      - private_dns              = "ip-10-40-0-36.ap-southeast-2.compute.internal" -> null
+      - private_ip               = "10.40.0.36" -> null
+      - public_dns               = "ec2-54-253-13-215.ap-southeast-2.compute.amazonaws.com" -> null
+      - public_ip                = "54.253.13.215" -> null
+      - public_ipv4_pool         = "amazon" -> null
+      - region                   = "ap-southeast-2" -> null
+      - tags                     = {
+          - "Name" = "collectionsinference-nat"
+        } -> null
+      - tags_all                 = {
+          - "ManagedBy" = "terraform"
+          - "Name"      = "collectionsinference-nat"
+          - "Project"   = "collectionsinference"
+        } -> null
+        # (6 unchanged attributes hidden)
+    }
+
+  # aws_iam_instance_profile.model_host will be destroyed
+  - resource "aws_iam_instance_profile" "model_host" {
+      - arn         = "arn:aws:iam::421482181886:instance-profile/collectionsinference-models" -> null
+      - create_date = "2026-10-09T14:10:39Z" -> null
+      - id          = "collectionsinference-models" -> null
+      - name        = "collectionsinference-models" -> null
+      - path        = "/" -> null
+      - role        = "collectionsinference-models" -> null
+      - tags        = {} -> null
+      - tags_all    = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - unique_id   = "AIPAWEISLWT7HFXWRLWTX" -> null
+        # (1 unchanged attribute hidden)
+    }
+
+  # aws_iam_role.execution will be destroyed
+  - resource "aws_iam_role" "execution" {
+      - arn                   = "arn:aws:iam::421482181886:role/collectionsinference-execution" -> null
+      - assume_role_policy    = jsonencode(
+            {
+              - Statement = [
+                  - {
+                      - Action    = "sts:AssumeRole"
+                      - Condition = {
+                          - StringEquals = {
+                              - "aws:SourceAccount" = "421482181886"
+                            }
+                        }
+                      - Effect    = "Allow"
+                      - Principal = {
+                          - Service = "ecs-tasks.amazonaws.com"
+                        }
+                    },
+                ]
+              - Version   = "2012-10-17"
+            }
+        ) -> null
+      - create_date           = "2026-10-09T14:10:37Z" -> null
+      - force_detach_policies = false -> null
+      - id                    = "collectionsinference-execution" -> null
+      - managed_policy_arns   = [] -> null
+      - max_session_duration  = 3600 -> null
+      - name                  = "collectionsinference-execution" -> null
+      - path                  = "/" -> null
+      - tags                  = {} -> null
+      - tags_all              = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - unique_id             = "AROAWEISLWT7AKCURC4AU" -> null
+        # (3 unchanged attributes hidden)
+
+      - inline_policy {
+          - name   = "pull-and-log" -> null
+          - policy = jsonencode(
+                {
+                  - Statement = [
+                      - {
+                          - Action   = "ecr:GetAuthorizationToken"
+                          - Effect   = "Allow"
+                          - Resource = "*"
+                          - Sid      = "EcrAuthToken"
+                        },
+                      - {
+                          - Action   = [
+                              - "ecr:GetDownloadUrlForLayer",
+                              - "ecr:BatchGetImage",
+                              - "ecr:BatchCheckLayerAvailability",
+                            ]
+                          - Effect   = "Allow"
+                          - Resource = "arn:aws:ecr:ap-southeast-2:421482181886:repository/collectionsinference"
+                          - Sid      = "EcrPull"
+                        },
+                      - {
+                          - Action   = [
+                              - "logs:PutLogEvents",
+                              - "logs:CreateLogStream",
+                            ]
+                          - Effect   = "Allow"
+                          - Resource = "arn:aws:logs:ap-southeast-2:421482181886:log-group:/ecs/collectionsinference:*"
+                          - Sid      = "Logs"
+                        },
+                    ]
+                  - Version   = "2012-10-17"
+                }
+            ) -> null
+        }
+    }
+
+  # aws_iam_role.model_host will be destroyed
+  - resource "aws_iam_role" "model_host" {
+      - arn                   = "arn:aws:iam::421482181886:role/collectionsinference-models" -> null
+      - assume_role_policy    = jsonencode(
+            {
+              - Statement = [
+                  - {
+                      - Action    = "sts:AssumeRole"
+                      - Effect    = "Allow"
+                      - Principal = {
+                          - Service = "ec2.amazonaws.com"
+                        }
+                    },
+                ]
+              - Version   = "2012-10-17"
+            }
+        ) -> null
+      - create_date           = "2026-10-09T14:10:37Z" -> null
+      - force_detach_policies = false -> null
+      - id                    = "collectionsinference-models" -> null
+      - managed_policy_arns   = [] -> null
+      - max_session_duration  = 3600 -> null
+      - name                  = "collectionsinference-models" -> null
+      - path                  = "/" -> null
+      - tags                  = {} -> null
+      - tags_all              = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - unique_id             = "AROAWEISLWT7BQUO37SFJ" -> null
+        # (3 unchanged attributes hidden)
+
+      - inline_policy {
+          - name   = "proxy-logs-ssm" -> null
+          - policy = jsonencode(
+                {
+                  - Statement = [
+                      - {
+                          - Action   = "ecr:GetAuthorizationToken"
+                          - Effect   = "Allow"
+                          - Resource = "*"
+                          - Sid      = "EcrAuthToken"
+                        },
+                      - {
+                          - Action   = [
+                              - "ecr:GetDownloadUrlForLayer",
+                              - "ecr:BatchGetImage",
+                              - "ecr:BatchCheckLayerAvailability",
+                            ]
+                          - Effect   = "Allow"
+                          - Resource = "arn:aws:ecr:ap-southeast-2:421482181886:repository/collectionsinference"
+                          - Sid      = "EcrPull"
+                        },
+                      - {
+                          - Action   = [
+                              - "logs:PutLogEvents",
+                              - "logs:CreateLogStream",
+                            ]
+                          - Effect   = "Allow"
+                          - Resource = "arn:aws:logs:ap-southeast-2:421482181886:log-group:/models/collectionsinference:*"
+                          - Sid      = "ContainerLogs"
+                        },
+                      - {
+                          - Action   = [
+                              - "ssmmessages:OpenDataChannel",
+                              - "ssmmessages:OpenControlChannel",
+                              - "ssmmessages:CreateDataChannel",
+                              - "ssmmessages:CreateControlChannel",
+                              - "ssm:UpdateInstanceInformation",
+                              - "ssm:UpdateInstanceAssociationStatus",
+                              - "ssm:UpdateAssociationStatus",
+                              - "ssm:PutInventory",
+                              - "ssm:PutConfigurePackageResult",
+                              - "ssm:PutComplianceItems",
+                              - "ssm:ListInstanceAssociations",
+                              - "ssm:ListAssociations",
+                              - "ssm:GetManifest",
+                              - "ssm:GetDocument",
+                              - "ssm:GetDeployablePatchSnapshotForInstance",
+                              - "ssm:DescribeDocument",
+                              - "ssm:DescribeAssociation",
+                              - "ec2messages:SendReply",
+                              - "ec2messages:GetMessages",
+                              - "ec2messages:GetEndpoint",
+                              - "ec2messages:FailMessage",
+                              - "ec2messages:DeleteMessage",
+                              - "ec2messages:AcknowledgeMessage",
+                            ]
+                          - Effect   = "Allow"
+                          - Resource = "*"
+                          - Sid      = "SsmAgent"
+                        },
+                    ]
+                  - Version   = "2012-10-17"
+                }
+            ) -> null
+        }
+    }
+
+  # aws_iam_role.task will be destroyed
+  - resource "aws_iam_role" "task" {
+      - arn                   = "arn:aws:iam::421482181886:role/collectionsinference-task" -> null
+      - assume_role_policy    = jsonencode(
+            {
+              - Statement = [
+                  - {
+                      - Action    = "sts:AssumeRole"
+                      - Condition = {
+                          - StringEquals = {
+                              - "aws:SourceAccount" = "421482181886"
+                            }
+                        }
+                      - Effect    = "Allow"
+                      - Principal = {
+                          - Service = "ecs-tasks.amazonaws.com"
+                        }
+                    },
+                ]
+              - Version   = "2012-10-17"
+            }
+        ) -> null
+      - create_date           = "2026-10-09T14:10:38Z" -> null
+      - force_detach_policies = false -> null
+      - id                    = "collectionsinference-task" -> null
+      - managed_policy_arns   = [] -> null
+      - max_session_duration  = 3600 -> null
+      - name                  = "collectionsinference-task" -> null
+      - path                  = "/" -> null
+      - tags                  = {} -> null
+      - tags_all              = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - unique_id             = "AROAWEISLWT7FFAWP2LYB" -> null
+        # (3 unchanged attributes hidden)
+
+      - inline_policy {
+          - name   = "state-table" -> null
+          - policy = jsonencode(
+                {
+                  - Statement = [
+                      - {
+                          - Action   = [
+                              - "dynamodb:UpdateItem",
+                              - "dynamodb:Query",
+                              - "dynamodb:PutItem",
+                              - "dynamodb:GetItem",
+                              - "dynamodb:ConditionCheckItem",
+                            ]
+                          - Effect   = "Allow"
+                          - Resource = [
+                              - "arn:aws:dynamodb:ap-southeast-2:421482181886:table/collectionsinference-state/index/by_status",
+                              - "arn:aws:dynamodb:ap-southeast-2:421482181886:table/collectionsinference-state",
+                            ]
+                          - Sid      = "TurnsAndDeadLetters"
+                        },
+                    ]
+                  - Version   = "2012-10-17"
+                }
+            ) -> null
+        }
+    }
+
+  # aws_iam_role_policy.execution will be destroyed
+  - resource "aws_iam_role_policy" "execution" {
+      - id          = "collectionsinference-execution:pull-and-log" -> null
+      - name        = "pull-and-log" -> null
+      - policy      = jsonencode(
+            {
+              - Statement = [
+                  - {
+                      - Action   = "ecr:GetAuthorizationToken"
+                      - Effect   = "Allow"
+                      - Resource = "*"
+                      - Sid      = "EcrAuthToken"
+                    },
+                  - {
+                      - Action   = [
+                          - "ecr:GetDownloadUrlForLayer",
+                          - "ecr:BatchGetImage",
+                          - "ecr:BatchCheckLayerAvailability",
+                        ]
+                      - Effect   = "Allow"
+                      - Resource = "arn:aws:ecr:ap-southeast-2:421482181886:repository/collectionsinference"
+                      - Sid      = "EcrPull"
+                    },
+                  - {
+                      - Action   = [
+                          - "logs:PutLogEvents",
+                          - "logs:CreateLogStream",
+                        ]
+                      - Effect   = "Allow"
+                      - Resource = "arn:aws:logs:ap-southeast-2:421482181886:log-group:/ecs/collectionsinference:*"
+                      - Sid      = "Logs"
+                    },
+                ]
+              - Version   = "2012-10-17"
+            }
+        ) -> null
+      - role        = "collectionsinference-execution" -> null
+        # (1 unchanged attribute hidden)
+    }
+
+  # aws_iam_role_policy.model_host will be destroyed
+  - resource "aws_iam_role_policy" "model_host" {
+      - id          = "collectionsinference-models:proxy-logs-ssm" -> null
+      - name        = "proxy-logs-ssm" -> null
+      - policy      = jsonencode(
+            {
+              - Statement = [
+                  - {
+                      - Action   = "ecr:GetAuthorizationToken"
+                      - Effect   = "Allow"
+                      - Resource = "*"
+                      - Sid      = "EcrAuthToken"
+                    },
+                  - {
+                      - Action   = [
+                          - "ecr:GetDownloadUrlForLayer",
+                          - "ecr:BatchGetImage",
+                          - "ecr:BatchCheckLayerAvailability",
+                        ]
+                      - Effect   = "Allow"
+                      - Resource = "arn:aws:ecr:ap-southeast-2:421482181886:repository/collectionsinference"
+                      - Sid      = "EcrPull"
+                    },
+                  - {
+                      - Action   = [
+                          - "logs:PutLogEvents",
+                          - "logs:CreateLogStream",
+                        ]
+                      - Effect   = "Allow"
+                      - Resource = "arn:aws:logs:ap-southeast-2:421482181886:log-group:/models/collectionsinference:*"
+                      - Sid      = "ContainerLogs"
+                    },
+                  - {
+                      - Action   = [
+                          - "ssmmessages:OpenDataChannel",
+                          - "ssmmessages:OpenControlChannel",
+                          - "ssmmessages:CreateDataChannel",
+                          - "ssmmessages:CreateControlChannel",
+                          - "ssm:UpdateInstanceInformation",
+                          - "ssm:UpdateInstanceAssociationStatus",
+                          - "ssm:UpdateAssociationStatus",
+                          - "ssm:PutInventory",
+                          - "ssm:PutConfigurePackageResult",
+                          - "ssm:PutComplianceItems",
+                          - "ssm:ListInstanceAssociations",
+                          - "ssm:ListAssociations",
+                          - "ssm:GetManifest",
+                          - "ssm:GetDocument",
+                          - "ssm:GetDeployablePatchSnapshotForInstance",
+                          - "ssm:DescribeDocument",
+                          - "ssm:DescribeAssociation",
+                          - "ec2messages:SendReply",
+                          - "ec2messages:GetMessages",
+                          - "ec2messages:GetEndpoint",
+                          - "ec2messages:FailMessage",
+                          - "ec2messages:DeleteMessage",
+                          - "ec2messages:AcknowledgeMessage",
+                        ]
+                      - Effect   = "Allow"
+                      - Resource = "*"
+                      - Sid      = "SsmAgent"
+                    },
+                ]
+              - Version   = "2012-10-17"
+            }
+        ) -> null
+      - role        = "collectionsinference-models" -> null
+        # (1 unchanged attribute hidden)
+    }
+
+  # aws_iam_role_policy.task will be destroyed
+  - resource "aws_iam_role_policy" "task" {
+      - id          = "collectionsinference-task:state-table" -> null
+      - name        = "state-table" -> null
+      - policy      = jsonencode(
+            {
+              - Statement = [
+                  - {
+                      - Action   = [
+                          - "dynamodb:UpdateItem",
+                          - "dynamodb:Query",
+                          - "dynamodb:PutItem",
+                          - "dynamodb:GetItem",
+                          - "dynamodb:ConditionCheckItem",
+                        ]
+                      - Effect   = "Allow"
+                      - Resource = [
+                          - "arn:aws:dynamodb:ap-southeast-2:421482181886:table/collectionsinference-state/index/by_status",
+                          - "arn:aws:dynamodb:ap-southeast-2:421482181886:table/collectionsinference-state",
+                        ]
+                      - Sid      = "TurnsAndDeadLetters"
+                    },
+                ]
+              - Version   = "2012-10-17"
+            }
+        ) -> null
+      - role        = "collectionsinference-task" -> null
+        # (1 unchanged attribute hidden)
+    }
+
+  # aws_internet_gateway.main will be destroyed
+  - resource "aws_internet_gateway" "main" {
+      - arn      = "arn:aws:ec2:ap-southeast-2:421482181886:internet-gateway/igw-036482bfd72d55378" -> null
+      - id       = "igw-036482bfd72d55378" -> null
+      - owner_id = "421482181886" -> null
+      - region   = "ap-southeast-2" -> null
+      - tags     = {
+          - "Name" = "collectionsinference"
+        } -> null
+      - tags_all = {
+          - "ManagedBy" = "terraform"
+          - "Name"      = "collectionsinference"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - vpc_id   = "vpc-03724b28212b9ec03" -> null
+    }
+
+  # aws_launch_template.model_host[0] will be destroyed
+  - resource "aws_launch_template" "model_host" {
+      - arn                                  = "arn:aws:ec2:ap-southeast-2:421482181886:launch-template/lt-0e92c26b79f5f7f22" -> null
+      - default_version                      = 1 -> null
+      - disable_api_stop                     = false -> null
+      - disable_api_termination              = false -> null
+      - id                                   = "lt-0e92c26b79f5f7f22" -> null
+      - image_id                             = "ami-0720cb7af233b0529" -> null
+      - instance_type                        = "m7a.2xlarge" -> null
+      - latest_version                       = 1 -> null
+      - name                                 = "collectionsinference-models-1081957350f8491b738c9a8635" -> null
+      - name_prefix                          = "collectionsinference-models-" -> null
+      - region                               = "ap-southeast-2" -> null
+      - security_group_names                 = [] -> null
+      - tags                                 = {} -> null
+      - tags_all                             = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - user_data                            = "IyEvYmluL2Jhc2gKIyBNb2RlbCBob3N0IGJvb3RzdHJhcDogdGhlIG1vZGVscyArIGNoYW9zIHByb3h5IHVuZGVyIGRvY2tlciBjb21wb3NlLgojIGdwdTogRGVlcCBMZWFybmluZyBBTUkgKGRyaXZlciwgRG9ja2VyLCBOVklESUEgdG9vbGtpdCBwcmVpbnN0YWxsZWQpLiBjcHU6IHBsYWluIEFMMjAyMy4Kc2V0IC1ldW8gcGlwZWZhaWwKZXhlYyA+ID4odGVlIC1hIC92YXIvbG9nL2NvbGxlY3Rpb25zLWJvb3RzdHJhcC5sb2cpIDI+JjEKZWNobyAiYm9vdHN0cmFwIHN0YXJ0ICQoZGF0ZSAtSXMpIgoKZG5mIGluc3RhbGwgLXkgZG9ja2VyCnN5c3RlbWN0bCBlbmFibGUgLS1ub3cgZG9ja2VyCmlmICEgZG9ja2VyIGNvbXBvc2UgdmVyc2lvbiA+L2Rldi9udWxsIDI+JjE7IHRoZW4KICBta2RpciAtcCAvdXNyL2xvY2FsL2xpYi9kb2NrZXIvY2xpLXBsdWdpbnMKICBjdXJsIC1mc1NMICJodHRwczovL2dpdGh1Yi5jb20vZG9ja2VyL2NvbXBvc2UvcmVsZWFzZXMvZG93bmxvYWQvdjIuMzkuNC9kb2NrZXItY29tcG9zZS1saW51eC14ODZfNjQiIFwKICAgIC1vIC91c3IvbG9jYWwvbGliL2RvY2tlci9jbGktcGx1Z2lucy9kb2NrZXItY29tcG9zZQogIGNobW9kICt4IC91c3IvbG9jYWwvbGliL2RvY2tlci9jbGktcGx1Z2lucy9kb2NrZXItY29tcG9zZQpmaQoKbWtkaXIgLXAgL29wdC9jb2xsZWN0aW9ucyAvb3B0L2hmL3ZsbG0gL29wdC9oZi9sbGFtYSAvb3B0L2hmL3NwZWFjaGVzCmNobW9kIDc3NyAvb3B0L2hmL3NwZWFjaGVzICAgIyBzcGVhY2hlcyBydW5zIGFzIGEgbm9uLXJvb3QgdXNlcgpjYXQgPiAvb3B0L2NvbGxlY3Rpb25zL2NvbXBvc2UueWFtbCA8PCdDT01QT1NFJwojIENQVSBmYWxsYmFjayAobm8gR1BVIHF1b3RhKTogOCBjb3JlcyBzaGFyZWQgYnkgdGhyZWUgY29udGFpbmVycy4KIyBsbGFtYS5jcHAgZ2V0cyA0IHRocmVhZHMgYW5kIDQgcGFyYWxsZWwgc2xvdHMgKGNvbnRpbnVvdXMgYmF0Y2hpbmcpOwojIFNwZWFjaGVzIChmYXN0ZXItd2hpc3BlciBpbnQ4ICsgS29rb3JvIE9OTlgpIGFuZCB0aGUgY2hhb3MgcHJveHkgc2hhcmUgdGhlIHJlc3QuCnNlcnZpY2VzOgogIGxsYW1hOgogICAgaW1hZ2U6IGdoY3IuaW8vZ2dtbC1vcmcvbGxhbWEuY3BwOnNlcnZlci1iMTE1MTUKICAgIHJlc3RhcnQ6IHVubGVzcy1zdG9wcGVkCiAgICBlbnZpcm9ubWVudDoKICAgICAgTExBTUFfQ0FDSEU6IC9jYWNoZQogICAgY29tbWFuZDoKICAgICAgLSAtaGYKICAgICAgLSBRd2VuL1F3ZW4yLjUtMS41Qi1JbnN0cnVjdC1HR1VGOlE0X0tfTQogICAgICAtIC0tYWxpYXMKICAgICAgLSBxd2VuMi41LTEuNWItaW5zdHJ1Y3QKICAgICAgLSAtLWhvc3QKICAgICAgLSAwLjAuMC4wCiAgICAgIC0gLS1wb3J0CiAgICAgIC0gIjgwMDAiCiAgICAgIC0gLS10aHJlYWRzCiAgICAgIC0gIjQiCiAgICAgIC0gLS1wYXJhbGxlbAogICAgICAtICI0IgogICAgICAtIC0tY3R4LXNpemUKICAgICAgLSAiODE5MiIKICAgIHZvbHVtZXM6CiAgICAgIC0gL29wdC9oZi9sbGFtYTovY2FjaGUKICAgIGhlYWx0aGNoZWNrOgogICAgICB0ZXN0OiBbIkNNRCIsICJjdXJsIiwgIi1mc1MiLCAiaHR0cDovL2xvY2FsaG9zdDo4MDAwL2hlYWx0aCJdCiAgICAgIGludGVydmFsOiAxNXMKICAgICAgdGltZW91dDogNXMKICAgICAgcmV0cmllczogODAKICAgICAgc3RhcnRfcGVyaW9kOiAzMHMKICAgIGxvZ2dpbmc6CiAgICAgIGRyaXZlcjogYXdzbG9ncwogICAgICBvcHRpb25zOiB7IGF3c2xvZ3MtZ3JvdXA6ICIvbW9kZWxzL2NvbGxlY3Rpb25zaW5mZXJlbmNlIiwgYXdzbG9ncy1yZWdpb246ICJhcC1zb3V0aGVhc3QtMiIsIGF3c2xvZ3Mtc3RyZWFtOiBsbGFtYSB9CgogIHNwZWFjaGVzOgogICAgaW1hZ2U6IGdoY3IuaW8vc3BlYWNoZXMtYWkvc3BlYWNoZXM6bGF0ZXN0LWNwdQogICAgcmVzdGFydDogdW5sZXNzLXN0b3BwZWQKICAgIGVudmlyb25tZW50OgogICAgICBXSElTUEVSX19UVEw6ICItMSIgIyBrZWVwIHRoZSBTVFQgbW9kZWwgbG9hZGVkIChkZWZhdWx0OiB1bmxvYWQgYWZ0ZXIgNSBtaW4gaWRsZSkKICAgICAgV0hJU1BFUl9fSU5GRVJFTkNFX0RFVklDRTogY3B1CiAgICAgIFdISVNQRVJfX0NPTVBVVEVfVFlQRTogaW50OAogICAgICBXSElTUEVSX19OVU1fV09SS0VSUzogIjIiICMgZGVmYXVsdCAxIHNlcmlhbGl6ZXMgdHJhbnNjcmlwdGlvbnMKICAgICAgV0hJU1BFUl9fQ1BVX1RIUkVBRFM6ICIyIgogICAgdm9sdW1lczoKICAgICAgLSAvb3B0L2hmL3NwZWFjaGVzOi9ob21lL3VidW50dS8uY2FjaGUvaHVnZ2luZ2ZhY2UvaHViCiAgICBoZWFsdGhjaGVjazoKICAgICAgdGVzdDogWyJDTUQiLCAicHl0aG9uMyIsICItYyIsICJpbXBvcnQgdXJsbGliLnJlcXVlc3Q7IHVybGxpYi5yZXF1ZXN0LnVybG9wZW4oJ2h0dHA6Ly9sb2NhbGhvc3Q6ODAwMC9oZWFsdGgnKSJdCiAgICAgIGludGVydmFsOiAxNXMKICAgICAgdGltZW91dDogNXMKICAgICAgcmV0cmllczogODAKICAgICAgc3RhcnRfcGVyaW9kOiAzMHMKICAgIGxvZ2dpbmc6CiAgICAgIGRyaXZlcjogYXdzbG9ncwogICAgICBvcHRpb25zOiB7IGF3c2xvZ3MtZ3JvdXA6ICIvbW9kZWxzL2NvbGxlY3Rpb25zaW5mZXJlbmNlIiwgYXdzbG9ncy1yZWdpb246ICJhcC1zb3V0aGVhc3QtMiIsIGF3c2xvZ3Mtc3RyZWFtOiBzcGVhY2hlcyB9CgogICMgU3BlYWNoZXMgZG9lcyBub3QgcHJlbG9hZCBtb2RlbHM6IGluc3RhbGwgdGhlbSB0aHJvdWdoIGl0cyBBUEksIHRoZW4gbG9hZCB0aGUgVFRTIG1vZGVsCiAgIyB3aXRoIG9uZSBzaG9ydCByZXF1ZXN0LiBUaGUgY2hhb3MgcHJveHkgKGFuZCBzbyB0aGUgTkxCIGhlYWx0aCBjaGVjaykgd2FpdHMgZm9yIHRoaXMuCiAgc3BlYWNoZXMtbW9kZWxzOgogICAgaW1hZ2U6IGdoY3IuaW8vc3BlYWNoZXMtYWkvc3BlYWNoZXM6bGF0ZXN0LWNwdQogICAgcmVzdGFydDogIm5vIgogICAgZGVwZW5kc19vbjoKICAgICAgc3BlYWNoZXM6IHsgY29uZGl0aW9uOiBzZXJ2aWNlX2hlYWx0aHkgfQogICAgZW50cnlwb2ludDoKICAgICAgLSBzaAogICAgICAtIC1jCiAgICAgIC0gPi0KICAgICAgICBjdXJsIC1mc1MgLVggUE9TVCBodHRwOi8vc3BlYWNoZXM6ODAwMC92MS9tb2RlbHMvU3lzdHJhbi9mYXN0ZXItd2hpc3Blci10aW55LmVuICYmCiAgICAgICAgY3VybCAtZnNTIC1YIFBPU1QgaHR0cDovL3NwZWFjaGVzOjgwMDAvdjEvbW9kZWxzL3NwZWFjaGVzLWFpL0tva29yby04Mk0tdjEuMC1PTk5YICYmCiAgICAgICAgY3VybCAtZnNTIC1vIC9kZXYvbnVsbCBodHRwOi8vc3BlYWNoZXM6ODAwMC92MS9hdWRpby9zcGVlY2ggLUggJ2NvbnRlbnQtdHlwZTogYXBwbGljYXRpb24vanNvbicKICAgICAgICAtZCAneyJtb2RlbCI6InNwZWFjaGVzLWFpL0tva29yby04Mk0tdjEuMC1PTk5YIiwidm9pY2UiOiJhZl9oZWFydCIsImlucHV0IjoiUmVhZHkuIiwicmVzcG9uc2VfZm9ybWF0Ijoid2F2In0nCiAgICBsb2dnaW5nOgogICAgICBkcml2ZXI6IGF3c2xvZ3MKICAgICAgb3B0aW9uczogeyBhd3Nsb2dzLWdyb3VwOiAiL21vZGVscy9jb2xsZWN0aW9uc2luZmVyZW5jZSIsIGF3c2xvZ3MtcmVnaW9uOiAiYXAtc291dGhlYXN0LTIiLCBhd3Nsb2dzLXN0cmVhbTogc3BlYWNoZXMtbW9kZWxzIH0KCiAgY2hhb3MtcHJveHk6CiAgICBpbWFnZTogNDIxNDgyMTgxODg2LmRrci5lY3IuYXAtc291dGhlYXN0LTIuYW1hem9uYXdzLmNvbS9jb2xsZWN0aW9uc2luZmVyZW5jZUBzaGEyNTY6NzQ4MzQ2Yjc1YzUxODU4NGQ4MGVkOTgzNzA4MmIyNjIzZjA5NWZiZjJmZWFlZGIxOTE0NzQ2NDZiOTVhYmQxMQogICAgcmVzdGFydDogdW5sZXNzLXN0b3BwZWQKICAgIGNvbW1hbmQ6IFsidm9pY2UtYWdlbnQiLCAiY2hhb3MtcHJveHkiLCAiLS1ob3N0IiwgIjAuMC4wLjAiLCAiLS1wb3J0IiwgIjgwODAiXQogICAgZW52aXJvbm1lbnQ6CiAgICAgIFBST1hZX0xMTV9VUFNUUkVBTTogaHR0cDovL2xsYW1hOjgwMDAKICAgICAgUFJPWFlfQVVESU9fVVBTVFJFQU06IGh0dHA6Ly9zcGVhY2hlczo4MDAwCiAgICAgIE1PQ0tfRkFJTFVSRV9SQVRFOiAiMC4yIgogICAgcG9ydHM6CiAgICAgIC0gIjgwODA6ODA4MCIKICAgIGRlcGVuZHNfb246CiAgICAgIGxsYW1hOiB7IGNvbmRpdGlvbjogc2VydmljZV9zdGFydGVkIH0KICAgICAgc3BlYWNoZXMtbW9kZWxzOiB7IGNvbmRpdGlvbjogc2VydmljZV9jb21wbGV0ZWRfc3VjY2Vzc2Z1bGx5IH0KICAgIGxvZ2dpbmc6CiAgICAgIGRyaXZlcjogYXdzbG9ncwogICAgICBvcHRpb25zOiB7IGF3c2xvZ3MtZ3JvdXA6ICIvbW9kZWxzL2NvbGxlY3Rpb25zaW5mZXJlbmNlIiwgYXdzbG9ncy1yZWdpb246ICJhcC1zb3V0aGVhc3QtMiIsIGF3c2xvZ3Mtc3RyZWFtOiBjaGFvcy1wcm94eSB9CgpDT01QT1NFCgphd3MgZWNyIGdldC1sb2dpbi1wYXNzd29yZCAtLXJlZ2lvbiBhcC1zb3V0aGVhc3QtMiB8IGRvY2tlciBsb2dpbiAtLXVzZXJuYW1lIEFXUyAtLXBhc3N3b3JkLXN0ZGluIDQyMTQ4MjE4MTg4Ni5ka3IuZWNyLmFwLXNvdXRoZWFzdC0yLmFtYXpvbmF3cy5jb20KY2QgL29wdC9jb2xsZWN0aW9ucwpkb2NrZXIgY29tcG9zZSBwdWxsIC0tcXVpZXQKZG9ja2VyIGNvbXBvc2UgdXAgLWQKCmZvciBpIGluICQoc2VxIDEgMTgwKTsgZG8KICBpZiBjdXJsIC1mc1MgbG9jYWxob3N0OjgwODAvcmVhZHkgPi9kZXYvbnVsbCAyPiYxOyB0aGVuCiAgICBlY2hvICJtb2RlbHMgcmVhZHkgYWZ0ZXIgJCgoaSAqIDEwKSlzIgogICAgZnJlZSAtbQogICAgZG9ja2VyIHN0YXRzIC0tbm8tc3RyZWFtCiAgICBleGl0IDAKICBmaQogIHNsZWVwIDEwCmRvbmUKZWNobyAibW9kZWxzIE5PVCByZWFkeSBhZnRlciAzMCBtaW4iCmRvY2tlciBjb21wb3NlIHBzCmV4aXQgMQo=" -> null
+      - vpc_security_group_ids               = [
+          - "sg-0544ece4c0cdf037b",
+        ] -> null
+        # (6 unchanged attributes hidden)
+
+      - block_device_mappings {
+          - device_name  = "/dev/xvda" -> null
+            # (2 unchanged attributes hidden)
+
+          - ebs {
+              - delete_on_termination      = "true" -> null
+              - encrypted                  = "true" -> null
+              - iops                       = 0 -> null
+              - throughput                 = 0 -> null
+              - volume_initialization_rate = 0 -> null
+              - volume_size                = 40 -> null
+              - volume_type                = "gp3" -> null
+                # (2 unchanged attributes hidden)
+            }
+        }
+
+      - iam_instance_profile {
+          - arn  = "arn:aws:iam::421482181886:instance-profile/collectionsinference-models" -> null
+            name = null
+        }
+
+      - metadata_options {
+          - http_put_response_hop_limit = 1 -> null
+          - http_tokens                 = "required" -> null
+            # (3 unchanged attributes hidden)
+        }
+
+      - tag_specifications {
+          - resource_type = "instance" -> null
+          - tags          = {
+              - "Name" = "collectionsinference-models"
+            } -> null
+        }
+      - tag_specifications {
+          - resource_type = "volume" -> null
+          - tags          = {
+              - "Name" = "collectionsinference-models"
+            } -> null
+        }
+    }
+
+  # aws_lb.app will be destroyed
+  - resource "aws_lb" "app" {
+      - arn                                                          = "arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:loadbalancer/app/collectionsinference/9d43e3c05a41b87a" -> null
+      - arn_suffix                                                   = "app/collectionsinference/9d43e3c05a41b87a" -> null
+      - client_keep_alive                                            = 3600 -> null
+      - desync_mitigation_mode                                       = "defensive" -> null
+      - dns_name                                                     = "collectionsinference-1985517869.ap-southeast-2.elb.amazonaws.com" -> null
+      - drop_invalid_header_fields                                   = true -> null
+      - enable_cross_zone_load_balancing                             = true -> null
+      - enable_deletion_protection                                   = false -> null
+      - enable_http2                                                 = true -> null
+      - enable_prefix_for_ipv6_source_nat                            = "off" -> null
+      - enable_tls_version_and_cipher_suite_headers                  = false -> null
+      - enable_waf_fail_open                                         = false -> null
+      - enable_xff_client_port                                       = false -> null
+      - enable_zonal_shift                                           = false -> null
+      - id                                                           = "arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:loadbalancer/app/collectionsinference/9d43e3c05a41b87a" -> null
+      - idle_timeout                                                 = 60 -> null
+      - internal                                                     = false -> null
+      - ip_address_type                                              = "ipv4" -> null
+      - load_balancer_type                                           = "application" -> null
+      - name                                                         = "collectionsinference" -> null
+      - preserve_host_header                                         = false -> null
+      - region                                                       = "ap-southeast-2" -> null
+      - security_groups                                              = [
+          - "sg-0fb9f3b416a63b9d5",
+        ] -> null
+      - subnets                                                      = [
+          - "subnet-004e5df2a6ad2289e",
+          - "subnet-04de17c55a3bbe70e",
+        ] -> null
+      - tags                                                         = {} -> null
+      - tags_all                                                     = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - vpc_id                                                       = "vpc-03724b28212b9ec03" -> null
+      - xff_header_processing_mode                                   = "append" -> null
+      - zone_id                                                      = "Z1GM3OXH4ZPM65" -> null
+        # (3 unchanged attributes hidden)
+
+      - access_logs {
+          - enabled = false -> null
+            # (2 unchanged attributes hidden)
+        }
+
+      - connection_logs {
+          - enabled = false -> null
+            # (2 unchanged attributes hidden)
+        }
+
+      - health_check_logs {
+          - enabled = false -> null
+            # (2 unchanged attributes hidden)
+        }
+
+      - subnet_mapping {
+          - subnet_id            = "subnet-004e5df2a6ad2289e" -> null
+            # (4 unchanged attributes hidden)
+        }
+      - subnet_mapping {
+          - subnet_id            = "subnet-04de17c55a3bbe70e" -> null
+            # (4 unchanged attributes hidden)
+        }
+    }
+
+  # aws_lb.models will be destroyed
+  - resource "aws_lb" "models" {
+      - arn                                                          = "arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:loadbalancer/net/collectionsinference-models/e204f73fdf80ecd9" -> null
+      - arn_suffix                                                   = "net/collectionsinference-models/e204f73fdf80ecd9" -> null
+      - dns_name                                                     = "collectionsinference-models-e204f73fdf80ecd9.elb.ap-southeast-2.amazonaws.com" -> null
+      - dns_record_client_routing_policy                             = "any_availability_zone" -> null
+      - enable_cross_zone_load_balancing                             = true -> null
+      - enable_deletion_protection                                   = false -> null
+      - enable_prefix_for_ipv6_source_nat                            = "off" -> null
+      - enable_zonal_shift                                           = false -> null
+      - id                                                           = "arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:loadbalancer/net/collectionsinference-models/e204f73fdf80ecd9" -> null
+      - internal                                                     = true -> null
+      - ip_address_type                                              = "ipv4" -> null
+      - load_balancer_type                                           = "network" -> null
+      - name                                                         = "collectionsinference-models" -> null
+      - region                                                       = "ap-southeast-2" -> null
+      - secondary_ips_auto_assigned_per_subnet                       = 0 -> null
+      - security_groups                                              = [
+          - "sg-01edd0f84f575b028",
+        ] -> null
+      - subnets                                                      = [
+          - "subnet-046697c7f26b34369",
+          - "subnet-083c5e6b582be9fed",
+        ] -> null
+      - tags                                                         = {} -> null
+      - tags_all                                                     = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - vpc_id                                                       = "vpc-03724b28212b9ec03" -> null
+      - zone_id                                                      = "ZCT6FZBF4DROD" -> null
+        # (3 unchanged attributes hidden)
+
+      - access_logs {
+          - enabled = false -> null
+            # (2 unchanged attributes hidden)
+        }
+
+      - subnet_mapping {
+          - subnet_id            = "subnet-046697c7f26b34369" -> null
+            # (4 unchanged attributes hidden)
+        }
+      - subnet_mapping {
+          - subnet_id            = "subnet-083c5e6b582be9fed" -> null
+            # (4 unchanged attributes hidden)
+        }
+    }
+
+  # aws_lb_listener.http will be destroyed
+  - resource "aws_lb_listener" "http" {
+      - arn                                                                 = "arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:listener/app/collectionsinference/9d43e3c05a41b87a/d988ce73f3429288" -> null
+      - id                                                                  = "arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:listener/app/collectionsinference/9d43e3c05a41b87a/d988ce73f3429288" -> null
+      - load_balancer_arn                                                   = "arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:loadbalancer/app/collectionsinference/9d43e3c05a41b87a" -> null
+      - port                                                                = 80 -> null
+      - protocol                                                            = "HTTP" -> null
+      - region                                                              = "ap-southeast-2" -> null
+      - routing_http_response_server_enabled                                = true -> null
+      - tags                                                                = {} -> null
+      - tags_all                                                            = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+        # (11 unchanged attributes hidden)
+
+      - default_action {
+          - order            = 1 -> null
+          - target_group_arn = "arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:targetgroup/collectionsinference-app/9a2c6896484c3c1e" -> null
+          - type             = "forward" -> null
+        }
+    }
+
+  # aws_lb_listener.models will be destroyed
+  - resource "aws_lb_listener" "models" {
+      - arn                      = "arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:listener/net/collectionsinference-models/e204f73fdf80ecd9/b4d597ff6ba6ff2c" -> null
+      - id                       = "arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:listener/net/collectionsinference-models/e204f73fdf80ecd9/b4d597ff6ba6ff2c" -> null
+      - load_balancer_arn        = "arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:loadbalancer/net/collectionsinference-models/e204f73fdf80ecd9" -> null
+      - port                     = 8080 -> null
+      - protocol                 = "TCP" -> null
+      - region                   = "ap-southeast-2" -> null
+      - tags                     = {} -> null
+      - tags_all                 = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - tcp_idle_timeout_seconds = 350 -> null
+        # (1 unchanged attribute hidden)
+
+      - default_action {
+          - order            = 1 -> null
+          - target_group_arn = "arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:targetgroup/collectionsinference-models-cpu/6336b79c46e85604" -> null
+          - type             = "forward" -> null
+        }
+    }
+
+  # aws_lb_target_group.app will be destroyed
+  - resource "aws_lb_target_group" "app" {
+      - arn                                = "arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:targetgroup/collectionsinference-app/9a2c6896484c3c1e" -> null
+      - arn_suffix                         = "targetgroup/collectionsinference-app/9a2c6896484c3c1e" -> null
+      - deregistration_delay               = "30" -> null
+      - id                                 = "arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:targetgroup/collectionsinference-app/9a2c6896484c3c1e" -> null
+      - ip_address_type                    = "ipv4" -> null
+      - lambda_multi_value_headers_enabled = false -> null
+      - load_balancer_arns                 = [
+          - "arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:loadbalancer/app/collectionsinference/9d43e3c05a41b87a",
+        ] -> null
+      - load_balancing_algorithm_type      = "round_robin" -> null
+      - load_balancing_anomaly_mitigation  = "off" -> null
+      - load_balancing_cross_zone_enabled  = "use_load_balancer_configuration" -> null
+      - name                               = "collectionsinference-app" -> null
+      - port                               = 8080 -> null
+      - protocol                           = "HTTP" -> null
+      - protocol_version                   = "HTTP1" -> null
+      - proxy_protocol_v2                  = false -> null
+      - region                             = "ap-southeast-2" -> null
+      - slow_start                         = 0 -> null
+      - tags                               = {} -> null
+      - tags_all                           = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - target_control_port                = 0 -> null
+      - target_type                        = "ip" -> null
+      - vpc_id                             = "vpc-03724b28212b9ec03" -> null
+        # (1 unchanged attribute hidden)
+
+      - health_check {
+          - enabled             = true -> null
+          - healthy_threshold   = 2 -> null
+          - interval            = 10 -> null
+          - matcher             = "200" -> null
+          - path                = "/health" -> null
+          - port                = "traffic-port" -> null
+          - protocol            = "HTTP" -> null
+          - timeout             = 5 -> null
+          - unhealthy_threshold = 3 -> null
+        }
+
+      - stickiness {
+          - cookie_duration = 300 -> null
+          - enabled         = true -> null
+          - type            = "lb_cookie" -> null
+            # (1 unchanged attribute hidden)
+        }
+
+      - target_failover {}
+
+      - target_group_health {
+          - dns_failover {
+              - minimum_healthy_targets_count      = "1" -> null
+              - minimum_healthy_targets_percentage = "off" -> null
+            }
+          - unhealthy_state_routing {
+              - minimum_healthy_targets_count      = 1 -> null
+              - minimum_healthy_targets_percentage = "off" -> null
+            }
+        }
+
+      - target_health_state {}
+    }
+
+  # aws_lb_target_group.models will be destroyed
+  - resource "aws_lb_target_group" "models" {
+      - arn                                = "arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:targetgroup/collectionsinference-models-cpu/6336b79c46e85604" -> null
+      - arn_suffix                         = "targetgroup/collectionsinference-models-cpu/6336b79c46e85604" -> null
+      - connection_termination             = false -> null
+      - deregistration_delay               = "10" -> null
+      - id                                 = "arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:targetgroup/collectionsinference-models-cpu/6336b79c46e85604" -> null
+      - ip_address_type                    = "ipv4" -> null
+      - lambda_multi_value_headers_enabled = false -> null
+      - load_balancer_arns                 = [
+          - "arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:loadbalancer/net/collectionsinference-models/e204f73fdf80ecd9",
+        ] -> null
+      - load_balancing_cross_zone_enabled  = "use_load_balancer_configuration" -> null
+      - name                               = "collectionsinference-models-cpu" -> null
+      - port                               = 8080 -> null
+      - preserve_client_ip                 = "false" -> null
+      - protocol                           = "TCP" -> null
+      - proxy_protocol_v2                  = false -> null
+      - region                             = "ap-southeast-2" -> null
+      - slow_start                         = 0 -> null
+      - tags                               = {} -> null
+      - tags_all                           = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - target_control_port                = 0 -> null
+      - target_type                        = "instance" -> null
+      - vpc_id                             = "vpc-03724b28212b9ec03" -> null
+        # (1 unchanged attribute hidden)
+
+      - health_check {
+          - enabled             = true -> null
+          - healthy_threshold   = 2 -> null
+          - interval            = 10 -> null
+          - matcher             = "200-399" -> null
+          - path                = "/ready" -> null
+          - port                = "8080" -> null
+          - protocol            = "HTTP" -> null
+          - timeout             = 6 -> null
+          - unhealthy_threshold = 2 -> null
+        }
+
+      - stickiness {
+          - cookie_duration = 0 -> null
+          - enabled         = false -> null
+          - type            = "source_ip" -> null
+            # (1 unchanged attribute hidden)
+        }
+
+      - target_failover {}
+
+      - target_group_health {
+          - dns_failover {
+              - minimum_healthy_targets_count      = "1" -> null
+              - minimum_healthy_targets_percentage = "off" -> null
+            }
+          - unhealthy_state_routing {
+              - minimum_healthy_targets_count      = 1 -> null
+              - minimum_healthy_targets_percentage = "off" -> null
+            }
+        }
+
+      - target_health_state {
+          - enable_unhealthy_connection_termination = true -> null
+          - unhealthy_draining_interval             = 0 -> null
+        }
+    }
+
+  # aws_nat_gateway.main will be destroyed
+  - resource "aws_nat_gateway" "main" {
+      - allocation_id                      = "eipalloc-02515f4f681a5b7b1" -> null
+      - association_id                     = "eipassoc-066e17623726ca9db" -> null
+      - availability_mode                  = "zonal" -> null
+      - connectivity_type                  = "public" -> null
+      - id                                 = "nat-0dd1e83ddea07f214" -> null
+      - network_interface_id               = "eni-075a4cf49fd7b3547" -> null
+      - private_ip                         = "10.40.0.36" -> null
+      - public_ip                          = "54.253.13.215" -> null
+      - region                             = "ap-southeast-2" -> null
+      - regional_nat_gateway_address       = [] -> null
+      - secondary_allocation_ids           = [] -> null
+      - secondary_private_ip_address_count = 0 -> null
+      - secondary_private_ip_addresses     = [] -> null
+      - subnet_id                          = "subnet-004e5df2a6ad2289e" -> null
+      - tags                               = {
+          - "Name" = "collectionsinference"
+        } -> null
+      - tags_all                           = {
+          - "ManagedBy" = "terraform"
+          - "Name"      = "collectionsinference"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - vpc_id                             = "vpc-03724b28212b9ec03" -> null
+    }
+
+  # aws_route_table.private will be destroyed
+  - resource "aws_route_table" "private" {
+      - arn              = "arn:aws:ec2:ap-southeast-2:421482181886:route-table/rtb-012101b6868435a6e" -> null
+      - id               = "rtb-012101b6868435a6e" -> null
+      - owner_id         = "421482181886" -> null
+      - propagating_vgws = [] -> null
+      - region           = "ap-southeast-2" -> null
+      - route            = [
+          - {
+              - cidr_block                 = "0.0.0.0/0"
+              - nat_gateway_id             = "nat-0dd1e83ddea07f214"
+                # (12 unchanged attributes hidden)
+            },
+        ] -> null
+      - tags             = {
+          - "Name" = "collectionsinference-private"
+        } -> null
+      - tags_all         = {
+          - "ManagedBy" = "terraform"
+          - "Name"      = "collectionsinference-private"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - vpc_id           = "vpc-03724b28212b9ec03" -> null
+    }
+
+  # aws_route_table.public will be destroyed
+  - resource "aws_route_table" "public" {
+      - arn              = "arn:aws:ec2:ap-southeast-2:421482181886:route-table/rtb-069b6f966ef8a906d" -> null
+      - id               = "rtb-069b6f966ef8a906d" -> null
+      - owner_id         = "421482181886" -> null
+      - propagating_vgws = [] -> null
+      - region           = "ap-southeast-2" -> null
+      - route            = [
+          - {
+              - cidr_block                 = "0.0.0.0/0"
+              - gateway_id                 = "igw-036482bfd72d55378"
+                # (12 unchanged attributes hidden)
+            },
+        ] -> null
+      - tags             = {
+          - "Name" = "collectionsinference-public"
+        } -> null
+      - tags_all         = {
+          - "ManagedBy" = "terraform"
+          - "Name"      = "collectionsinference-public"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - vpc_id           = "vpc-03724b28212b9ec03" -> null
+    }
+
+  # aws_route_table_association.private[0] will be destroyed
+  - resource "aws_route_table_association" "private" {
+      - id             = "rtbassoc-0fa87e788e6461947" -> null
+      - region         = "ap-southeast-2" -> null
+      - route_table_id = "rtb-012101b6868435a6e" -> null
+      - subnet_id      = "subnet-046697c7f26b34369" -> null
+        # (1 unchanged attribute hidden)
+    }
+
+  # aws_route_table_association.private[1] will be destroyed
+  - resource "aws_route_table_association" "private" {
+      - id             = "rtbassoc-01c11429d9312d629" -> null
+      - region         = "ap-southeast-2" -> null
+      - route_table_id = "rtb-012101b6868435a6e" -> null
+      - subnet_id      = "subnet-083c5e6b582be9fed" -> null
+        # (1 unchanged attribute hidden)
+    }
+
+  # aws_route_table_association.public[0] will be destroyed
+  - resource "aws_route_table_association" "public" {
+      - id             = "rtbassoc-05c5ef3b66e4cbf0c" -> null
+      - region         = "ap-southeast-2" -> null
+      - route_table_id = "rtb-069b6f966ef8a906d" -> null
+      - subnet_id      = "subnet-004e5df2a6ad2289e" -> null
+        # (1 unchanged attribute hidden)
+    }
+
+  # aws_route_table_association.public[1] will be destroyed
+  - resource "aws_route_table_association" "public" {
+      - id             = "rtbassoc-098c23a41e0a06e5a" -> null
+      - region         = "ap-southeast-2" -> null
+      - route_table_id = "rtb-069b6f966ef8a906d" -> null
+      - subnet_id      = "subnet-04de17c55a3bbe70e" -> null
+        # (1 unchanged attribute hidden)
+    }
+
+  # aws_security_group.alb will be destroyed
+  - resource "aws_security_group" "alb" {
+      - arn                    = "arn:aws:ec2:ap-southeast-2:421482181886:security-group/sg-0fb9f3b416a63b9d5" -> null
+      - description            = "Public ALB: HTTP from allowed CIDRs only" -> null
+      - egress                 = [
+          - {
+              - cidr_blocks      = []
+              - from_port        = 8080
+              - ipv6_cidr_blocks = []
+              - prefix_list_ids  = []
+              - protocol         = "tcp"
+              - security_groups  = [
+                  - "sg-054c1a416ca59bc6b",
+                ]
+              - self             = false
+              - to_port          = 8080
+                # (1 unchanged attribute hidden)
+            },
+        ] -> null
+      - id                     = "sg-0fb9f3b416a63b9d5" -> null
+      - ingress                = [
+          - {
+              - cidr_blocks      = [
+                  - "122.167.99.20/32",
+                ]
+              - from_port        = 80
+              - ipv6_cidr_blocks = []
+              - prefix_list_ids  = []
+              - protocol         = "tcp"
+              - security_groups  = []
+              - self             = false
+              - to_port          = 80
+                # (1 unchanged attribute hidden)
+            },
+          - {
+              - cidr_blocks      = [
+                  - "183.82.27.107/32",
+                ]
+              - description      = "operator-ip-2"
+              - from_port        = 80
+              - ipv6_cidr_blocks = []
+              - prefix_list_ids  = []
+              - protocol         = "tcp"
+              - security_groups  = []
+              - self             = false
+              - to_port          = 80
+            },
+        ] -> null
+      - name                   = "collectionsinference-alb" -> null
+      - owner_id               = "421482181886" -> null
+      - region                 = "ap-southeast-2" -> null
+      - revoke_rules_on_delete = false -> null
+      - tags                   = {
+          - "Name" = "collectionsinference-alb"
+        } -> null
+      - tags_all               = {
+          - "ManagedBy" = "terraform"
+          - "Name"      = "collectionsinference-alb"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - vpc_id                 = "vpc-03724b28212b9ec03" -> null
+        # (1 unchanged attribute hidden)
+    }
+
+  # aws_security_group.models will be destroyed
+  - resource "aws_security_group" "models" {
+      - arn                    = "arn:aws:ec2:ap-southeast-2:421482181886:security-group/sg-0544ece4c0cdf037b" -> null
+      - description            = "Model tier (mock task or model host): 8080 from the NLB only" -> null
+      - egress                 = [
+          - {
+              - cidr_blocks      = [
+                  - "0.0.0.0/0",
+                ]
+              - from_port        = 0
+              - ipv6_cidr_blocks = []
+              - prefix_list_ids  = []
+              - protocol         = "-1"
+              - security_groups  = []
+              - self             = false
+              - to_port          = 0
+                # (1 unchanged attribute hidden)
+            },
+        ] -> null
+      - id                     = "sg-0544ece4c0cdf037b" -> null
+      - ingress                = [
+          - {
+              - cidr_blocks      = []
+              - from_port        = 8080
+              - ipv6_cidr_blocks = []
+              - prefix_list_ids  = []
+              - protocol         = "tcp"
+              - security_groups  = [
+                  - "sg-01edd0f84f575b028",
+                ]
+              - self             = false
+              - to_port          = 8080
+                # (1 unchanged attribute hidden)
+            },
+        ] -> null
+      - name                   = "collectionsinference-models" -> null
+      - owner_id               = "421482181886" -> null
+      - region                 = "ap-southeast-2" -> null
+      - revoke_rules_on_delete = false -> null
+      - tags                   = {
+          - "Name" = "collectionsinference-models"
+        } -> null
+      - tags_all               = {
+          - "ManagedBy" = "terraform"
+          - "Name"      = "collectionsinference-models"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - vpc_id                 = "vpc-03724b28212b9ec03" -> null
+        # (1 unchanged attribute hidden)
+    }
+
+  # aws_security_group.nlb will be destroyed
+  - resource "aws_security_group" "nlb" {
+      - arn                    = "arn:aws:ec2:ap-southeast-2:421482181886:security-group/sg-01edd0f84f575b028" -> null
+      - description            = "Internal NLB to the model tier: 8080 from voice-agent tasks only" -> null
+      - egress                 = [
+          - {
+              - cidr_blocks      = []
+              - from_port        = 8080
+              - ipv6_cidr_blocks = []
+              - prefix_list_ids  = []
+              - protocol         = "tcp"
+              - security_groups  = [
+                  - "sg-0544ece4c0cdf037b",
+                ]
+              - self             = false
+              - to_port          = 8080
+                # (1 unchanged attribute hidden)
+            },
+        ] -> null
+      - id                     = "sg-01edd0f84f575b028" -> null
+      - ingress                = [
+          - {
+              - cidr_blocks      = []
+              - from_port        = 8080
+              - ipv6_cidr_blocks = []
+              - prefix_list_ids  = []
+              - protocol         = "tcp"
+              - security_groups  = [
+                  - "sg-054c1a416ca59bc6b",
+                ]
+              - self             = false
+              - to_port          = 8080
+                # (1 unchanged attribute hidden)
+            },
+        ] -> null
+      - name                   = "collectionsinference-models-nlb" -> null
+      - owner_id               = "421482181886" -> null
+      - region                 = "ap-southeast-2" -> null
+      - revoke_rules_on_delete = false -> null
+      - tags                   = {
+          - "Name" = "collectionsinference-models-nlb"
+        } -> null
+      - tags_all               = {
+          - "ManagedBy" = "terraform"
+          - "Name"      = "collectionsinference-models-nlb"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - vpc_id                 = "vpc-03724b28212b9ec03" -> null
+        # (1 unchanged attribute hidden)
+    }
+
+  # aws_security_group.tasks will be destroyed
+  - resource "aws_security_group" "tasks" {
+      - arn                    = "arn:aws:ec2:ap-southeast-2:421482181886:security-group/sg-054c1a416ca59bc6b" -> null
+      - description            = "voice-agent tasks: 8080 from the ALB only" -> null
+      - egress                 = [
+          - {
+              - cidr_blocks      = [
+                  - "0.0.0.0/0",
+                ]
+              - from_port        = 0
+              - ipv6_cidr_blocks = []
+              - prefix_list_ids  = []
+              - protocol         = "-1"
+              - security_groups  = []
+              - self             = false
+              - to_port          = 0
+                # (1 unchanged attribute hidden)
+            },
+        ] -> null
+      - id                     = "sg-054c1a416ca59bc6b" -> null
+      - ingress                = [
+          - {
+              - cidr_blocks      = []
+              - from_port        = 8080
+              - ipv6_cidr_blocks = []
+              - prefix_list_ids  = []
+              - protocol         = "tcp"
+              - security_groups  = [
+                  - "sg-0fb9f3b416a63b9d5",
+                ]
+              - self             = false
+              - to_port          = 8080
+                # (1 unchanged attribute hidden)
+            },
+        ] -> null
+      - name                   = "collectionsinference-tasks" -> null
+      - owner_id               = "421482181886" -> null
+      - region                 = "ap-southeast-2" -> null
+      - revoke_rules_on_delete = false -> null
+      - tags                   = {
+          - "Name" = "collectionsinference-tasks"
+        } -> null
+      - tags_all               = {
+          - "ManagedBy" = "terraform"
+          - "Name"      = "collectionsinference-tasks"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - vpc_id                 = "vpc-03724b28212b9ec03" -> null
+        # (1 unchanged attribute hidden)
+    }
+
+  # aws_sns_topic.alarms will be destroyed
+  - resource "aws_sns_topic" "alarms" {
+      - application_success_feedback_sample_rate = 0 -> null
+      - arn                                      = "arn:aws:sns:ap-southeast-2:421482181886:collectionsinference-alarms" -> null
+      - content_based_deduplication              = false -> null
+      - fifo_topic                               = false -> null
+      - firehose_success_feedback_sample_rate    = 0 -> null
+      - http_success_feedback_sample_rate        = 0 -> null
+      - id                                       = "arn:aws:sns:ap-southeast-2:421482181886:collectionsinference-alarms" -> null
+      - lambda_success_feedback_sample_rate      = 0 -> null
+      - maximum_message_size                     = 0 -> null
+      - name                                     = "collectionsinference-alarms" -> null
+      - owner                                    = "421482181886" -> null
+      - policy                                   = jsonencode(
+            {
+              - Id        = "__default_policy_ID"
+              - Statement = [
+                  - {
+                      - Action    = [
+                          - "SNS:GetTopicAttributes",
+                          - "SNS:SetTopicAttributes",
+                          - "SNS:AddPermission",
+                          - "SNS:RemovePermission",
+                          - "SNS:DeleteTopic",
+                          - "SNS:Subscribe",
+                          - "SNS:ListSubscriptionsByTopic",
+                          - "SNS:Publish",
+                        ]
+                      - Condition = {
+                          - StringEquals = {
+                              - "AWS:SourceOwner" = "421482181886"
+                            }
+                        }
+                      - Effect    = "Allow"
+                      - Principal = {
+                          - AWS = "*"
+                        }
+                      - Resource  = "arn:aws:sns:ap-southeast-2:421482181886:collectionsinference-alarms"
+                      - Sid       = "__default_statement_ID"
+                    },
+                ]
+              - Version   = "2008-10-17"
+            }
+        ) -> null
+      - region                                   = "ap-southeast-2" -> null
+      - signature_version                        = 0 -> null
+      - sqs_success_feedback_sample_rate         = 0 -> null
+      - tags                                     = {} -> null
+      - tags_all                                 = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+        # (18 unchanged attributes hidden)
+    }
+
+  # aws_sns_topic_subscription.email[0] will be destroyed
+  - resource "aws_sns_topic_subscription" "email" {
+      - arn                             = "arn:aws:sns:ap-southeast-2:421482181886:collectionsinference-alarms:7022d961-d7e5-4e9b-abd6-56f754bd8ec5" -> null
+      - confirmation_timeout_in_minutes = 1 -> null
+      - confirmation_was_authenticated  = false -> null
+      - endpoint                        = "kishanmadhav3@gmail.com" -> null
+      - endpoint_auto_confirms          = false -> null
+      - id                              = "arn:aws:sns:ap-southeast-2:421482181886:collectionsinference-alarms:7022d961-d7e5-4e9b-abd6-56f754bd8ec5" -> null
+      - owner_id                        = "421482181886" -> null
+      - pending_confirmation            = true -> null
+      - protocol                        = "email" -> null
+      - raw_message_delivery            = false -> null
+      - region                          = "ap-southeast-2" -> null
+      - topic_arn                       = "arn:aws:sns:ap-southeast-2:421482181886:collectionsinference-alarms" -> null
+        # (6 unchanged attributes hidden)
+    }
+
+  # aws_subnet.private[0] will be destroyed
+  - resource "aws_subnet" "private" {
+      - arn                                            = "arn:aws:ec2:ap-southeast-2:421482181886:subnet/subnet-046697c7f26b34369" -> null
+      - assign_ipv6_address_on_creation                = false -> null
+      - availability_zone                              = "ap-southeast-2a" -> null
+      - availability_zone_id                           = "apse2-az1" -> null
+      - cidr_block                                     = "10.40.10.0/23" -> null
+      - enable_dns64                                   = false -> null
+      - enable_lni_at_device_index                     = 0 -> null
+      - enable_resource_name_dns_a_record_on_launch    = false -> null
+      - enable_resource_name_dns_aaaa_record_on_launch = false -> null
+      - id                                             = "subnet-046697c7f26b34369" -> null
+      - ipv6_native                                    = false -> null
+      - map_customer_owned_ip_on_launch                = false -> null
+      - map_public_ip_on_launch                        = false -> null
+      - owner_id                                       = "421482181886" -> null
+      - private_dns_hostname_type_on_launch            = "ip-name" -> null
+      - region                                         = "ap-southeast-2" -> null
+      - tags                                           = {
+          - "Name" = "collectionsinference-private-ap-southeast-2a"
+          - "Tier" = "private"
+        } -> null
+      - tags_all                                       = {
+          - "ManagedBy" = "terraform"
+          - "Name"      = "collectionsinference-private-ap-southeast-2a"
+          - "Project"   = "collectionsinference"
+          - "Tier"      = "private"
+        } -> null
+      - vpc_id                                         = "vpc-03724b28212b9ec03" -> null
+        # (4 unchanged attributes hidden)
+    }
+
+  # aws_subnet.private[1] will be destroyed
+  - resource "aws_subnet" "private" {
+      - arn                                            = "arn:aws:ec2:ap-southeast-2:421482181886:subnet/subnet-083c5e6b582be9fed" -> null
+      - assign_ipv6_address_on_creation                = false -> null
+      - availability_zone                              = "ap-southeast-2c" -> null
+      - availability_zone_id                           = "apse2-az2" -> null
+      - cidr_block                                     = "10.40.12.0/23" -> null
+      - enable_dns64                                   = false -> null
+      - enable_lni_at_device_index                     = 0 -> null
+      - enable_resource_name_dns_a_record_on_launch    = false -> null
+      - enable_resource_name_dns_aaaa_record_on_launch = false -> null
+      - id                                             = "subnet-083c5e6b582be9fed" -> null
+      - ipv6_native                                    = false -> null
+      - map_customer_owned_ip_on_launch                = false -> null
+      - map_public_ip_on_launch                        = false -> null
+      - owner_id                                       = "421482181886" -> null
+      - private_dns_hostname_type_on_launch            = "ip-name" -> null
+      - region                                         = "ap-southeast-2" -> null
+      - tags                                           = {
+          - "Name" = "collectionsinference-private-ap-southeast-2c"
+          - "Tier" = "private"
+        } -> null
+      - tags_all                                       = {
+          - "ManagedBy" = "terraform"
+          - "Name"      = "collectionsinference-private-ap-southeast-2c"
+          - "Project"   = "collectionsinference"
+          - "Tier"      = "private"
+        } -> null
+      - vpc_id                                         = "vpc-03724b28212b9ec03" -> null
+        # (4 unchanged attributes hidden)
+    }
+
+  # aws_subnet.public[0] will be destroyed
+  - resource "aws_subnet" "public" {
+      - arn                                            = "arn:aws:ec2:ap-southeast-2:421482181886:subnet/subnet-004e5df2a6ad2289e" -> null
+      - assign_ipv6_address_on_creation                = false -> null
+      - availability_zone                              = "ap-southeast-2a" -> null
+      - availability_zone_id                           = "apse2-az1" -> null
+      - cidr_block                                     = "10.40.0.0/24" -> null
+      - enable_dns64                                   = false -> null
+      - enable_lni_at_device_index                     = 0 -> null
+      - enable_resource_name_dns_a_record_on_launch    = false -> null
+      - enable_resource_name_dns_aaaa_record_on_launch = false -> null
+      - id                                             = "subnet-004e5df2a6ad2289e" -> null
+      - ipv6_native                                    = false -> null
+      - map_customer_owned_ip_on_launch                = false -> null
+      - map_public_ip_on_launch                        = false -> null
+      - owner_id                                       = "421482181886" -> null
+      - private_dns_hostname_type_on_launch            = "ip-name" -> null
+      - region                                         = "ap-southeast-2" -> null
+      - tags                                           = {
+          - "Name" = "collectionsinference-public-ap-southeast-2a"
+          - "Tier" = "public"
+        } -> null
+      - tags_all                                       = {
+          - "ManagedBy" = "terraform"
+          - "Name"      = "collectionsinference-public-ap-southeast-2a"
+          - "Project"   = "collectionsinference"
+          - "Tier"      = "public"
+        } -> null
+      - vpc_id                                         = "vpc-03724b28212b9ec03" -> null
+        # (4 unchanged attributes hidden)
+    }
+
+  # aws_subnet.public[1] will be destroyed
+  - resource "aws_subnet" "public" {
+      - arn                                            = "arn:aws:ec2:ap-southeast-2:421482181886:subnet/subnet-04de17c55a3bbe70e" -> null
+      - assign_ipv6_address_on_creation                = false -> null
+      - availability_zone                              = "ap-southeast-2c" -> null
+      - availability_zone_id                           = "apse2-az2" -> null
+      - cidr_block                                     = "10.40.1.0/24" -> null
+      - enable_dns64                                   = false -> null
+      - enable_lni_at_device_index                     = 0 -> null
+      - enable_resource_name_dns_a_record_on_launch    = false -> null
+      - enable_resource_name_dns_aaaa_record_on_launch = false -> null
+      - id                                             = "subnet-04de17c55a3bbe70e" -> null
+      - ipv6_native                                    = false -> null
+      - map_customer_owned_ip_on_launch                = false -> null
+      - map_public_ip_on_launch                        = false -> null
+      - owner_id                                       = "421482181886" -> null
+      - private_dns_hostname_type_on_launch            = "ip-name" -> null
+      - region                                         = "ap-southeast-2" -> null
+      - tags                                           = {
+          - "Name" = "collectionsinference-public-ap-southeast-2c"
+          - "Tier" = "public"
+        } -> null
+      - tags_all                                       = {
+          - "ManagedBy" = "terraform"
+          - "Name"      = "collectionsinference-public-ap-southeast-2c"
+          - "Project"   = "collectionsinference"
+          - "Tier"      = "public"
+        } -> null
+      - vpc_id                                         = "vpc-03724b28212b9ec03" -> null
+        # (4 unchanged attributes hidden)
+    }
+
+  # aws_vpc.main will be destroyed
+  - resource "aws_vpc" "main" {
+      - arn                                  = "arn:aws:ec2:ap-southeast-2:421482181886:vpc/vpc-03724b28212b9ec03" -> null
+      - assign_generated_ipv6_cidr_block     = false -> null
+      - cidr_block                           = "10.40.0.0/16" -> null
+      - default_network_acl_id               = "acl-061406dedab209cf7" -> null
+      - default_route_table_id               = "rtb-0e90138f8e314d16b" -> null
+      - default_security_group_id            = "sg-037baaa9fe9358240" -> null
+      - dhcp_options_id                      = "dopt-00ca86e820a616e05" -> null
+      - enable_dns_hostnames                 = true -> null
+      - enable_dns_support                   = true -> null
+      - enable_network_address_usage_metrics = false -> null
+      - id                                   = "vpc-03724b28212b9ec03" -> null
+      - instance_tenancy                     = "default" -> null
+      - ipv6_netmask_length                  = 0 -> null
+      - main_route_table_id                  = "rtb-0e90138f8e314d16b" -> null
+      - owner_id                             = "421482181886" -> null
+      - region                               = "ap-southeast-2" -> null
+      - tags                                 = {
+          - "Name" = "collectionsinference"
+        } -> null
+      - tags_all                             = {
+          - "ManagedBy" = "terraform"
+          - "Name"      = "collectionsinference"
+          - "Project"   = "collectionsinference"
+        } -> null
+        # (4 unchanged attributes hidden)
+    }
+
+  # aws_vpc_endpoint.dynamodb will be destroyed
+  - resource "aws_vpc_endpoint" "dynamodb" {
+      - arn                        = "arn:aws:ec2:ap-southeast-2:421482181886:vpc-endpoint/vpce-0293c31b83566b282" -> null
+      - cidr_blocks                = [
+          - "52.94.13.0/24",
+          - "35.71.97.0/25",
+          - "35.71.97.128/26",
+        ] -> null
+      - dns_entry                  = [] -> null
+      - id                         = "vpce-0293c31b83566b282" -> null
+      - ip_address_type            = "ipv4" -> null
+      - network_interface_ids      = [] -> null
+      - owner_id                   = "421482181886" -> null
+      - policy                     = jsonencode(
+            {
+              - Statement = [
+                  - {
+                      - Action    = "*"
+                      - Effect    = "Allow"
+                      - Principal = "*"
+                      - Resource  = "*"
+                    },
+                ]
+              - Version   = "2008-10-17"
+            }
+        ) -> null
+      - prefix_list_id             = "pl-62a5400b" -> null
+      - private_dns_enabled        = false -> null
+      - region                     = "ap-southeast-2" -> null
+      - requester_managed          = false -> null
+      - route_table_ids            = [
+          - "rtb-012101b6868435a6e",
+        ] -> null
+      - security_group_ids         = [] -> null
+      - service_name               = "com.amazonaws.ap-southeast-2.dynamodb" -> null
+      - service_region             = "ap-southeast-2" -> null
+      - state                      = "available" -> null
+      - subnet_ids                 = [] -> null
+      - tags                       = {
+          - "Name" = "collectionsinference-dynamodb"
+        } -> null
+      - tags_all                   = {
+          - "ManagedBy" = "terraform"
+          - "Name"      = "collectionsinference-dynamodb"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - vpc_endpoint_type          = "Gateway" -> null
+      - vpc_id                     = "vpc-03724b28212b9ec03" -> null
+        # (2 unchanged attributes hidden)
+
+      - dns_options {
+          - dns_record_ip_type                             = "service-defined" -> null
+          - private_dns_only_for_inbound_resolver_endpoint = false -> null
+          - private_dns_specified_domains                  = [] -> null
+            # (1 unchanged attribute hidden)
+        }
+    }
+
+  # aws_vpc_endpoint.s3 will be destroyed
+  - resource "aws_vpc_endpoint" "s3" {
+      - arn                        = "arn:aws:ec2:ap-southeast-2:421482181886:vpc-endpoint/vpce-0b2b19471b36b03a9" -> null
+      - cidr_blocks                = [
+          - "3.5.164.0/22",
+          - "16.12.74.0/24",
+          - "3.5.168.0/23",
+          - "52.95.128.0/21",
+        ] -> null
+      - dns_entry                  = [] -> null
+      - id                         = "vpce-0b2b19471b36b03a9" -> null
+      - ip_address_type            = "ipv4" -> null
+      - network_interface_ids      = [] -> null
+      - owner_id                   = "421482181886" -> null
+      - policy                     = jsonencode(
+            {
+              - Statement = [
+                  - {
+                      - Action    = "*"
+                      - Effect    = "Allow"
+                      - Principal = "*"
+                      - Resource  = "*"
+                    },
+                ]
+              - Version   = "2008-10-17"
+            }
+        ) -> null
+      - prefix_list_id             = "pl-6ca54005" -> null
+      - private_dns_enabled        = false -> null
+      - region                     = "ap-southeast-2" -> null
+      - requester_managed          = false -> null
+      - route_table_ids            = [
+          - "rtb-012101b6868435a6e",
+        ] -> null
+      - security_group_ids         = [] -> null
+      - service_name               = "com.amazonaws.ap-southeast-2.s3" -> null
+      - service_region             = "ap-southeast-2" -> null
+      - state                      = "available" -> null
+      - subnet_ids                 = [] -> null
+      - tags                       = {
+          - "Name" = "collectionsinference-s3"
+        } -> null
+      - tags_all                   = {
+          - "ManagedBy" = "terraform"
+          - "Name"      = "collectionsinference-s3"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - vpc_endpoint_type          = "Gateway" -> null
+      - vpc_id                     = "vpc-03724b28212b9ec03" -> null
+        # (2 unchanged attributes hidden)
+
+      - dns_options {
+          - dns_record_ip_type                             = "service-defined" -> null
+          - private_dns_only_for_inbound_resolver_endpoint = false -> null
+          - private_dns_specified_domains                  = [] -> null
+            # (1 unchanged attribute hidden)
+        }
+    }
+
+  # aws_vpc_security_group_egress_rule.alb_to_tasks will be destroyed
+  - resource "aws_vpc_security_group_egress_rule" "alb_to_tasks" {
+      - arn                          = "arn:aws:ec2:ap-southeast-2:421482181886:security-group-rule/sgr-04e21c4b2751475e6" -> null
+      - from_port                    = 8080 -> null
+      - id                           = "sgr-04e21c4b2751475e6" -> null
+      - ip_protocol                  = "tcp" -> null
+      - referenced_security_group_id = "sg-054c1a416ca59bc6b" -> null
+      - region                       = "ap-southeast-2" -> null
+      - security_group_id            = "sg-0fb9f3b416a63b9d5" -> null
+      - security_group_rule_id       = "sgr-04e21c4b2751475e6" -> null
+      - tags_all                     = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - to_port                      = 8080 -> null
+    }
+
+  # aws_vpc_security_group_egress_rule.models_out will be destroyed
+  - resource "aws_vpc_security_group_egress_rule" "models_out" {
+      - arn                    = "arn:aws:ec2:ap-southeast-2:421482181886:security-group-rule/sgr-0c239022f6a83f95f" -> null
+      - cidr_ipv4              = "0.0.0.0/0" -> null
+      - id                     = "sgr-0c239022f6a83f95f" -> null
+      - ip_protocol            = "-1" -> null
+      - region                 = "ap-southeast-2" -> null
+      - security_group_id      = "sg-0544ece4c0cdf037b" -> null
+      - security_group_rule_id = "sgr-0c239022f6a83f95f" -> null
+      - tags_all               = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+    }
+
+  # aws_vpc_security_group_egress_rule.nlb_to_models will be destroyed
+  - resource "aws_vpc_security_group_egress_rule" "nlb_to_models" {
+      - arn                          = "arn:aws:ec2:ap-southeast-2:421482181886:security-group-rule/sgr-0b263dc283e483bfd" -> null
+      - from_port                    = 8080 -> null
+      - id                           = "sgr-0b263dc283e483bfd" -> null
+      - ip_protocol                  = "tcp" -> null
+      - referenced_security_group_id = "sg-0544ece4c0cdf037b" -> null
+      - region                       = "ap-southeast-2" -> null
+      - security_group_id            = "sg-01edd0f84f575b028" -> null
+      - security_group_rule_id       = "sgr-0b263dc283e483bfd" -> null
+      - tags_all                     = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - to_port                      = 8080 -> null
+    }
+
+  # aws_vpc_security_group_egress_rule.tasks_out will be destroyed
+  - resource "aws_vpc_security_group_egress_rule" "tasks_out" {
+      - arn                    = "arn:aws:ec2:ap-southeast-2:421482181886:security-group-rule/sgr-01bfb2ce1fcd7c4aa" -> null
+      - cidr_ipv4              = "0.0.0.0/0" -> null
+      - id                     = "sgr-01bfb2ce1fcd7c4aa" -> null
+      - ip_protocol            = "-1" -> null
+      - region                 = "ap-southeast-2" -> null
+      - security_group_id      = "sg-054c1a416ca59bc6b" -> null
+      - security_group_rule_id = "sgr-01bfb2ce1fcd7c4aa" -> null
+      - tags_all               = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+    }
+
+  # aws_vpc_security_group_ingress_rule.alb_http["122.167.99.20/32"] will be destroyed
+  - resource "aws_vpc_security_group_ingress_rule" "alb_http" {
+      - arn                    = "arn:aws:ec2:ap-southeast-2:421482181886:security-group-rule/sgr-0bf314b2b3bd39bca" -> null
+      - cidr_ipv4              = "122.167.99.20/32" -> null
+      - from_port              = 80 -> null
+      - id                     = "sgr-0bf314b2b3bd39bca" -> null
+      - ip_protocol            = "tcp" -> null
+      - region                 = "ap-southeast-2" -> null
+      - security_group_id      = "sg-0fb9f3b416a63b9d5" -> null
+      - security_group_rule_id = "sgr-0bf314b2b3bd39bca" -> null
+      - tags_all               = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - to_port                = 80 -> null
+    }
+
+  # aws_vpc_security_group_ingress_rule.models_from_nlb will be destroyed
+  - resource "aws_vpc_security_group_ingress_rule" "models_from_nlb" {
+      - arn                          = "arn:aws:ec2:ap-southeast-2:421482181886:security-group-rule/sgr-0bb727ff4cb5f1ed9" -> null
+      - from_port                    = 8080 -> null
+      - id                           = "sgr-0bb727ff4cb5f1ed9" -> null
+      - ip_protocol                  = "tcp" -> null
+      - referenced_security_group_id = "sg-01edd0f84f575b028" -> null
+      - region                       = "ap-southeast-2" -> null
+      - security_group_id            = "sg-0544ece4c0cdf037b" -> null
+      - security_group_rule_id       = "sgr-0bb727ff4cb5f1ed9" -> null
+      - tags_all                     = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - to_port                      = 8080 -> null
+    }
+
+  # aws_vpc_security_group_ingress_rule.nlb_from_tasks will be destroyed
+  - resource "aws_vpc_security_group_ingress_rule" "nlb_from_tasks" {
+      - arn                          = "arn:aws:ec2:ap-southeast-2:421482181886:security-group-rule/sgr-097bceb60bdc06933" -> null
+      - from_port                    = 8080 -> null
+      - id                           = "sgr-097bceb60bdc06933" -> null
+      - ip_protocol                  = "tcp" -> null
+      - referenced_security_group_id = "sg-054c1a416ca59bc6b" -> null
+      - region                       = "ap-southeast-2" -> null
+      - security_group_id            = "sg-01edd0f84f575b028" -> null
+      - security_group_rule_id       = "sgr-097bceb60bdc06933" -> null
+      - tags_all                     = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - to_port                      = 8080 -> null
+    }
+
+  # aws_vpc_security_group_ingress_rule.tasks_from_alb will be destroyed
+  - resource "aws_vpc_security_group_ingress_rule" "tasks_from_alb" {
+      - arn                          = "arn:aws:ec2:ap-southeast-2:421482181886:security-group-rule/sgr-0b2bd82cb85e79f51" -> null
+      - from_port                    = 8080 -> null
+      - id                           = "sgr-0b2bd82cb85e79f51" -> null
+      - ip_protocol                  = "tcp" -> null
+      - referenced_security_group_id = "sg-0fb9f3b416a63b9d5" -> null
+      - region                       = "ap-southeast-2" -> null
+      - security_group_id            = "sg-054c1a416ca59bc6b" -> null
+      - security_group_rule_id       = "sgr-0b2bd82cb85e79f51" -> null
+      - tags_all                     = {
+          - "ManagedBy" = "terraform"
+          - "Project"   = "collectionsinference"
+        } -> null
+      - to_port                      = 8080 -> null
+    }
+
+  # docker_image.app will be destroyed
+  - resource "docker_image" "app" {
+      - id           = "sha256:748346b75c518584d80ed9837082b2623f095fbf2feaedb191474646b95abd11421482181886.dkr.ecr.ap-southeast-2.amazonaws.com/collectionsinference:ec400f1b535f" -> null
+      - image_id     = "sha256:748346b75c518584d80ed9837082b2623f095fbf2feaedb191474646b95abd11" -> null
+      - keep_locally = true -> null
+      - name         = "421482181886.dkr.ecr.ap-southeast-2.amazonaws.com/collectionsinference:ec400f1b535f" -> null
+      - repo_digest  = "421482181886.dkr.ecr.ap-southeast-2.amazonaws.com/collectionsinference@sha256:748346b75c518584d80ed9837082b2623f095fbf2feaedb191474646b95abd11" -> null
+      - triggers     = {
+          - "src" = "ec400f1b535f"
+        } -> null
+
+      - build {
+          - additional_contexts = [] -> null
+          - build_args          = {} -> null
+          - cache_from          = [] -> null
+          - cache_to            = [] -> null
+          - context             = "C:/predixion-ai" -> null
+          - cpu_period          = 0 -> null
+          - cpu_quota           = 0 -> null
+          - cpu_shares          = 0 -> null
+          - dockerfile          = "Dockerfile" -> null
+          - extra_hosts         = [] -> null
+          - force_remove        = false -> null
+          - label               = {} -> null
+          - labels              = {} -> null
+          - memory              = 0 -> null
+          - memory_swap         = 0 -> null
+          - no_cache            = false -> null
+          - platform            = "linux/amd64" -> null
+          - pull_parent         = false -> null
+          - remove              = true -> null
+          - security_opt        = [] -> null
+          - shm_size            = 0 -> null
+          - squash              = false -> null
+          - suppress_output     = false -> null
+          - tag                 = [] -> null
+          - use_legacy_builder  = false -> null
+            # (14 unchanged attributes hidden)
+        }
+    }
+
+  # docker_registry_image.app will be destroyed
+  - resource "docker_registry_image" "app" {
+      - id                   = "sha256:748346b75c518584d80ed9837082b2623f095fbf2feaedb191474646b95abd11" -> null
+      - insecure_skip_verify = false -> null
+      - keep_remotely        = true -> null
+      - name                 = "421482181886.dkr.ecr.ap-southeast-2.amazonaws.com/collectionsinference:ec400f1b535f" -> null
+      - sha256_digest        = "sha256:748346b75c518584d80ed9837082b2623f095fbf2feaedb191474646b95abd11" -> null
+      - triggers             = {
+          - "src" = "ec400f1b535f"
+        } -> null
+    }
+
+Plan: 0 to add, 0 to change, 73 to destroy.
+
+Changes to Outputs:
+  - app_image       = "421482181886.dkr.ecr.ap-southeast-2.amazonaws.com/collectionsinference@sha256:748346b75c518584d80ed9837082b2623f095fbf2feaedb191474646b95abd11" -> null
+  - cluster         = "collectionsinference" -> null
+  - dashboard_url   = "https://ap-southeast-2.console.aws.amazon.com/cloudwatch/home?region=ap-southeast-2#dashboards/dashboard/collectionsinference" -> null
+  - model_host_asg  = "collectionsinference-models-cpu" -> null
+  - models_endpoint = "http://collectionsinference-models-e204f73fdf80ecd9.elb.ap-southeast-2.amazonaws.com:8080/v1" -> null
+  - state_table     = "collectionsinference-state" -> null
+  - url             = "http://collectionsinference-1985517869.ap-southeast-2.elb.amazonaws.com" -> null
+aws_vpc_security_group_egress_rule.nlb_to_models: Destroying... [id=sgr-0b263dc283e483bfd]
+aws_iam_role_policy.task: Destroying... [id=collectionsinference-task:state-table]
+aws_vpc_security_group_ingress_rule.models_from_nlb: Destroying... [id=sgr-0bb727ff4cb5f1ed9]
+aws_iam_role_policy.model_host: Destroying... [id=collectionsinference-models:proxy-logs-ssm]
+aws_vpc_security_group_ingress_rule.nlb_from_tasks: Destroying... [id=sgr-097bceb60bdc06933]
+aws_iam_role_policy.execution: Destroying... [id=collectionsinference-execution:pull-and-log]
+aws_route_table_association.private[0]: Destroying... [id=rtbassoc-0fa87e788e6461947]
+aws_appautoscaling_policy.active_calls: Destroying... [id=active-calls-per-task]
+aws_cloudwatch_metric_alarm.p99_latency: Destroying... [id=collectionsinference-p99-latency-3x-baseline]
+aws_cloudwatch_metric_alarm.breaker_open["llm"]: Destroying... [id=collectionsinference-breaker-open-llm]
+aws_iam_role_policy.execution: Destruction complete after 1s
+aws_iam_role_policy.task: Destruction complete after 1s
+aws_iam_role_policy.model_host: Destruction complete after 1s
+aws_cloudwatch_dashboard.main: Destroying... [id=collectionsinference]
+aws_cloudwatch_metric_alarm.breaker_open["stt"]: Destroying... [id=collectionsinference-breaker-open-stt]
+aws_cloudwatch_metric_alarm.breaker_open["tts"]: Destroying... [id=collectionsinference-breaker-open-tts]
+aws_cloudwatch_metric_alarm.p99_latency: Destruction complete after 2s
+aws_vpc_security_group_egress_rule.alb_to_tasks: Destroying... [id=sgr-04e21c4b2751475e6]
+aws_cloudwatch_metric_alarm.breaker_open["llm"]: Destruction complete after 2s
+aws_autoscaling_schedule.model_host_off[0]: Destroying... [id=dead-man-switch]
+aws_appautoscaling_policy.active_calls: Destruction complete after 2s
+aws_ecr_lifecycle_policy.app: Destroying... [id=collectionsinference]
+aws_vpc_security_group_egress_rule.nlb_to_models: Destruction complete after 2s
+aws_route_table_association.public[1]: Destroying... [id=rtbassoc-098c23a41e0a06e5a]
+aws_vpc_security_group_ingress_rule.models_from_nlb: Destruction complete after 2s
+aws_cloudwatch_log_resource_policy.events: Destroying... [id=collectionsinference-events]
+aws_vpc_security_group_ingress_rule.nlb_from_tasks: Destruction complete after 2s
+aws_vpc_endpoint.s3: Destroying... [id=vpce-0b2b19471b36b03a9]
+aws_cloudwatch_metric_alarm.breaker_open["stt"]: Destruction complete after 1s
+aws_cloudwatch_metric_alarm.elb_5xx: Destroying... [id=collectionsinference-elb-5xx]
+aws_route_table_association.private[0]: Destruction complete after 2s
+aws_cloudwatch_event_target.ecs_to_logs: Destroying... [id=collectionsinference-ecs-events-terraform-ud7W3y8zRRlNsBgO8OaqOGs9Vi]
+aws_vpc_security_group_egress_rule.alb_to_tasks: Destruction complete after 1s
+aws_cloudwatch_metric_alarm.target_5xx: Destroying... [id=collectionsinference-http-5xx]
+aws_cloudwatch_metric_alarm.breaker_open["tts"]: Destruction complete after 2s
+aws_vpc_security_group_egress_rule.models_out: Destroying... [id=sgr-0c239022f6a83f95f]
+aws_cloudwatch_metric_alarm.elb_5xx: Destruction complete after 1s
+aws_route_table_association.private[1]: Destroying... [id=rtbassoc-01c11429d9312d629]
+aws_cloudwatch_metric_alarm.target_5xx: Destruction complete after 0s
+aws_route_table_association.public[0]: Destroying... [id=rtbassoc-05c5ef3b66e4cbf0c]
+aws_route_table_association.public[1]: Destruction complete after 1s
+aws_vpc_security_group_ingress_rule.alb_http["122.167.99.20/32"]: Destroying... [id=sgr-0bf314b2b3bd39bca]
+aws_cloudwatch_dashboard.main: Destruction complete after 2s
+aws_sns_topic_subscription.email[0]: Destroying... [id=arn:aws:sns:ap-southeast-2:421482181886:collectionsinference-alarms:7022d961-d7e5-4e9b-abd6-56f754bd8ec5]
+aws_vpc_security_group_egress_rule.models_out: Destruction complete after 0s
+aws_vpc_endpoint.dynamodb: Destroying... [id=vpce-0293c31b83566b282]
+aws_autoscaling_schedule.model_host_off[0]: Destruction complete after 1s
+aws_ecr_lifecycle_policy.app: Destruction complete after 2s
+aws_cloudwatch_metric_alarm.dlq_pending: Destroying... [id=collectionsinference-dlq-pending]
+aws_lb_listener.models: Destroying... [id=arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:listener/net/collectionsinference-models/e204f73fdf80ecd9/b4d597ff6ba6ff2c]
+aws_cloudwatch_log_resource_policy.events: Destruction complete after 2s
+aws_vpc_security_group_egress_rule.tasks_out: Destroying... [id=sgr-01bfb2ce1fcd7c4aa]
+aws_vpc_security_group_ingress_rule.alb_http["122.167.99.20/32"]: Destruction complete after 1s
+aws_cloudwatch_event_target.scaling_alarms_to_logs: Destroying... [id=collectionsinference-scaling-alarms-terraform-IpGMiE9PTtF39G5SkrB9qk8oxK]
+aws_route_table_association.private[1]: Destruction complete after 1s
+aws_vpc_security_group_ingress_rule.tasks_from_alb: Destroying... [id=sgr-0b2bd82cb85e79f51]
+aws_cloudwatch_event_target.ecs_to_logs: Destruction complete after 2s
+aws_appautoscaling_target.app: Destroying... [id=service/collectionsinference/voice-agent]
+aws_route_table_association.public[0]: Destruction complete after 1s
+aws_cloudwatch_metric_alarm.dlq_pending: Destruction complete after 0s
+aws_autoscaling_group.model_host[0]: Destroying... [id=collectionsinference-models-cpu]
+aws_cloudwatch_event_rule.ecs: Destroying... [id=collectionsinference-ecs-events]
+aws_vpc_security_group_egress_rule.tasks_out: Destruction complete after 0s
+aws_route_table.public: Destroying... [id=rtb-069b6f966ef8a906d]
+aws_cloudwatch_event_target.scaling_alarms_to_logs: Destruction complete after 0s
+aws_cloudwatch_event_rule.scaling_alarms: Destroying... [id=collectionsinference-scaling-alarms]
+aws_vpc_security_group_ingress_rule.tasks_from_alb: Destruction complete after 0s
+aws_cloudwatch_log_group.events: Destroying... [id=/aws/events/collectionsinference]
+aws_cloudwatch_event_rule.ecs: Destruction complete after 1s
+aws_sns_topic_subscription.email[0]: Destruction complete after 2s
+aws_sns_topic.alarms: Destroying... [id=arn:aws:sns:ap-southeast-2:421482181886:collectionsinference-alarms]
+aws_appautoscaling_target.app: Destruction complete after 1s
+aws_ecs_service.app: Destroying... [id=arn:aws:ecs:ap-southeast-2:421482181886:service/collectionsinference/voice-agent]
+aws_cloudwatch_log_group.events: Destruction complete after 0s
+aws_cloudwatch_event_rule.scaling_alarms: Destruction complete after 1s
+aws_lb_listener.models: Destruction complete after 1s
+aws_sns_topic.alarms: Destruction complete after 0s
+aws_route_table.public: Destruction complete after 2s
+aws_vpc_endpoint.s3: Still destroying... [id=vpce-0b2b19471b36b03a9, 00m10s elapsed]
+aws_vpc_endpoint.dynamodb: Still destroying... [id=vpce-0293c31b83566b282, 00m10s elapsed]
+aws_vpc_endpoint.s3: Destruction complete after 12s
+aws_autoscaling_group.model_host[0]: Still destroying... [id=collectionsinference-models-cpu, 00m10s elapsed]
+aws_vpc_endpoint.dynamodb: Destruction complete after 12s
+aws_route_table.private: Destroying... [id=rtb-012101b6868435a6e]
+aws_ecs_service.app: Still destroying... [id=arn:aws:ecs:ap-southeast-2:421482181886:service/collectionsinference/voice-agent, 00m10s elapsed]
+aws_route_table.private: Destruction complete after 3s
+aws_nat_gateway.main: Destroying... [id=nat-0dd1e83ddea07f214]
+aws_autoscaling_group.model_host[0]: Still destroying... [id=collectionsinference-models-cpu, 00m20s elapsed]
+aws_ecs_service.app: Still destroying... [id=arn:aws:ecs:ap-southeast-2:421482181886:service/collectionsinference/voice-agent, 00m20s elapsed]
+aws_nat_gateway.main: Still destroying... [id=nat-0dd1e83ddea07f214, 00m10s elapsed]
+aws_autoscaling_group.model_host[0]: Still destroying... [id=collectionsinference-models-cpu, 00m30s elapsed]
+aws_ecs_service.app: Still destroying... [id=arn:aws:ecs:ap-southeast-2:421482181886:service/collectionsinference/voice-agent, 00m30s elapsed]
+aws_nat_gateway.main: Still destroying... [id=nat-0dd1e83ddea07f214, 00m20s elapsed]
+aws_autoscaling_group.model_host[0]: Still destroying... [id=collectionsinference-models-cpu, 00m40s elapsed]
+aws_ecs_service.app: Still destroying... [id=arn:aws:ecs:ap-southeast-2:421482181886:service/collectionsinference/voice-agent, 00m40s elapsed]
+aws_nat_gateway.main: Still destroying... [id=nat-0dd1e83ddea07f214, 00m30s elapsed]
+aws_autoscaling_group.model_host[0]: Still destroying... [id=collectionsinference-models-cpu, 00m50s elapsed]
+aws_ecs_service.app: Still destroying... [id=arn:aws:ecs:ap-southeast-2:421482181886:service/collectionsinference/voice-agent, 00m50s elapsed]
+aws_nat_gateway.main: Still destroying... [id=nat-0dd1e83ddea07f214, 00m40s elapsed]
+aws_autoscaling_group.model_host[0]: Still destroying... [id=collectionsinference-models-cpu, 01m00s elapsed]
+aws_ecs_service.app: Still destroying... [id=arn:aws:ecs:ap-southeast-2:421482181886:service/collectionsinference/voice-agent, 01m00s elapsed]
+aws_nat_gateway.main: Still destroying... [id=nat-0dd1e83ddea07f214, 00m50s elapsed]
+aws_nat_gateway.main: Destruction complete after 54s
+aws_internet_gateway.main: Destroying... [id=igw-036482bfd72d55378]
+aws_eip.nat: Destroying... [id=eipalloc-02515f4f681a5b7b1]
+aws_autoscaling_group.model_host[0]: Still destroying... [id=collectionsinference-models-cpu, 01m10s elapsed]
+aws_eip.nat: Destruction complete after 2s
+aws_ecs_service.app: Still destroying... [id=arn:aws:ecs:ap-southeast-2:421482181886:service/collectionsinference/voice-agent, 01m10s elapsed]
+aws_internet_gateway.main: Still destroying... [id=igw-036482bfd72d55378, 00m10s elapsed]
+aws_autoscaling_group.model_host[0]: Still destroying... [id=collectionsinference-models-cpu, 01m20s elapsed]
+aws_ecs_service.app: Still destroying... [id=arn:aws:ecs:ap-southeast-2:421482181886:service/collectionsinference/voice-agent, 01m20s elapsed]
+aws_internet_gateway.main: Still destroying... [id=igw-036482bfd72d55378, 00m20s elapsed]
+aws_autoscaling_group.model_host[0]: Still destroying... [id=collectionsinference-models-cpu, 01m30s elapsed]
+aws_ecs_service.app: Still destroying... [id=arn:aws:ecs:ap-southeast-2:421482181886:service/collectionsinference/voice-agent, 01m30s elapsed]
+aws_internet_gateway.main: Still destroying... [id=igw-036482bfd72d55378, 00m30s elapsed]
+aws_autoscaling_group.model_host[0]: Still destroying... [id=collectionsinference-models-cpu, 01m40s elapsed]
+aws_ecs_service.app: Still destroying... [id=arn:aws:ecs:ap-southeast-2:421482181886:service/collectionsinference/voice-agent, 01m40s elapsed]
+aws_internet_gateway.main: Still destroying... [id=igw-036482bfd72d55378, 00m40s elapsed]
+aws_autoscaling_group.model_host[0]: Still destroying... [id=collectionsinference-models-cpu, 01m50s elapsed]
+aws_ecs_service.app: Still destroying... [id=arn:aws:ecs:ap-southeast-2:421482181886:service/collectionsinference/voice-agent, 01m50s elapsed]
+aws_internet_gateway.main: Still destroying... [id=igw-036482bfd72d55378, 00m50s elapsed]
+aws_autoscaling_group.model_host[0]: Still destroying... [id=collectionsinference-models-cpu, 02m00s elapsed]
+aws_ecs_service.app: Still destroying... [id=arn:aws:ecs:ap-southeast-2:421482181886:service/collectionsinference/voice-agent, 02m00s elapsed]
+aws_internet_gateway.main: Still destroying... [id=igw-036482bfd72d55378, 01m00s elapsed]
+aws_autoscaling_group.model_host[0]: Still destroying... [id=collectionsinference-models-cpu, 02m10s elapsed]
+aws_ecs_service.app: Still destroying... [id=arn:aws:ecs:ap-southeast-2:421482181886:service/collectionsinference/voice-agent, 02m10s elapsed]
+aws_internet_gateway.main: Still destroying... [id=igw-036482bfd72d55378, 01m10s elapsed]
+aws_autoscaling_group.model_host[0]: Still destroying... [id=collectionsinference-models-cpu, 02m20s elapsed]
+aws_ecs_service.app: Still destroying... [id=arn:aws:ecs:ap-southeast-2:421482181886:service/collectionsinference/voice-agent, 02m20s elapsed]
+aws_internet_gateway.main: Still destroying... [id=igw-036482bfd72d55378, 01m20s elapsed]
+aws_autoscaling_group.model_host[0]: Still destroying... [id=collectionsinference-models-cpu, 02m30s elapsed]
+aws_autoscaling_group.model_host[0]: Destruction complete after 2m30s
+aws_lb_target_group.models: Destroying... [id=arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:targetgroup/collectionsinference-models-cpu/6336b79c46e85604]
+aws_launch_template.model_host[0]: Destroying... [id=lt-0e92c26b79f5f7f22]
+aws_ecs_service.app: Still destroying... [id=arn:aws:ecs:ap-southeast-2:421482181886:service/collectionsinference/voice-agent, 02m30s elapsed]
+aws_lb_target_group.models: Destruction complete after 2s
+aws_launch_template.model_host[0]: Destruction complete after 2s
+aws_iam_instance_profile.model_host: Destroying... [id=collectionsinference-models]
+aws_cloudwatch_log_group.model_host: Destroying... [id=/models/collectionsinference]
+aws_security_group.models: Destroying... [id=sg-0544ece4c0cdf037b]
+aws_iam_instance_profile.model_host: Destruction complete after 1s
+aws_iam_role.model_host: Destroying... [id=collectionsinference-models]
+aws_cloudwatch_log_group.model_host: Destruction complete after 1s
+aws_security_group.models: Destruction complete after 1s
+aws_iam_role.model_host: Destruction complete after 1s
+aws_internet_gateway.main: Still destroying... [id=igw-036482bfd72d55378, 01m30s elapsed]
+aws_ecs_service.app: Still destroying... [id=arn:aws:ecs:ap-southeast-2:421482181886:service/collectionsinference/voice-agent, 02m40s elapsed]
+aws_internet_gateway.main: Still destroying... [id=igw-036482bfd72d55378, 01m40s elapsed]
+aws_ecs_service.app: Still destroying... [id=arn:aws:ecs:ap-southeast-2:421482181886:service/collectionsinference/voice-agent, 02m50s elapsed]
+aws_internet_gateway.main: Still destroying... [id=igw-036482bfd72d55378, 01m50s elapsed]
+aws_ecs_service.app: Still destroying... [id=arn:aws:ecs:ap-southeast-2:421482181886:service/collectionsinference/voice-agent, 03m00s elapsed]
+aws_internet_gateway.main: Still destroying... [id=igw-036482bfd72d55378, 02m00s elapsed]
+aws_ecs_service.app: Still destroying... [id=arn:aws:ecs:ap-southeast-2:421482181886:service/collectionsinference/voice-agent, 03m10s elapsed]
+aws_internet_gateway.main: Still destroying... [id=igw-036482bfd72d55378, 02m10s elapsed]
+aws_ecs_service.app: Still destroying... [id=arn:aws:ecs:ap-southeast-2:421482181886:service/collectionsinference/voice-agent, 03m20s elapsed]
+aws_ecs_service.app: Destruction complete after 3m25s
+aws_ecs_cluster.main: Destroying... [id=arn:aws:ecs:ap-southeast-2:421482181886:cluster/collectionsinference]
+aws_security_group.tasks: Destroying... [id=sg-054c1a416ca59bc6b]
+aws_lb_listener.http: Destroying... [id=arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:listener/app/collectionsinference/9d43e3c05a41b87a/d988ce73f3429288]
+aws_ecs_task_definition.app: Destroying... [id=voice-agent]
+aws_lb_listener.http: Destruction complete after 1s
+aws_lb_target_group.app: Destroying... [id=arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:targetgroup/collectionsinference-app/9a2c6896484c3c1e]
+aws_lb.app: Destroying... [id=arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:loadbalancer/app/collectionsinference/9d43e3c05a41b87a]
+aws_ecs_task_definition.app: Destruction complete after 1s
+aws_cloudwatch_log_group.app: Destroying... [id=/ecs/collectionsinference]
+aws_iam_role.task: Destroying... [id=collectionsinference-task]
+aws_iam_role.execution: Destroying... [id=collectionsinference-execution]
+aws_lb.models: Destroying... [id=arn:aws:elasticloadbalancing:ap-southeast-2:421482181886:loadbalancer/net/collectionsinference-models/e204f73fdf80ecd9]
+aws_dynamodb_table.state: Destroying... [id=collectionsinference-state]
+aws_lb_target_group.app: Destruction complete after 0s
+docker_registry_image.app: Destroying... [id=sha256:748346b75c518584d80ed9837082b2623f095fbf2feaedb191474646b95abd11]
+docker_registry_image.app: Destruction complete after 0s
+docker_image.app: Destroying... [id=sha256:748346b75c518584d80ed9837082b2623f095fbf2feaedb191474646b95abd11421482181886.dkr.ecr.ap-southeast-2.amazonaws.com/collectionsinference:ec400f1b535f]
+docker_image.app: Destruction complete after 0s
+aws_ecr_repository.app: Destroying... [id=collectionsinference]
+aws_ecs_cluster.main: Destruction complete after 2s
+aws_cloudwatch_log_group.container_insights: Destroying... [id=/aws/ecs/containerinsights/collectionsinference/performance]
+aws_internet_gateway.main: Still destroying... [id=igw-036482bfd72d55378, 02m20s elapsed]
+aws_iam_role.task: Destruction complete after 1s
+aws_iam_role.execution: Destruction complete after 1s
+aws_cloudwatch_log_group.app: Destruction complete after 2s
+aws_cloudwatch_log_group.container_insights: Destruction complete after 1s
+aws_ecr_repository.app: Destruction complete after 2s
+aws_security_group.tasks: Destruction complete after 4s
+aws_dynamodb_table.state: Destruction complete after 10s
+aws_lb.app: Still destroying... [id=arn:aws:elasticloadbalancing:ap-southea.../collectionsinference/9d43e3c05a41b87a, 00m10s elapsed]
+aws_lb.models: Still destroying... [id=arn:aws:elasticloadbalancing:ap-southea...tionsinference-models/e204f73fdf80ecd9, 00m10s elapsed]
+aws_internet_gateway.main: Still destroying... [id=igw-036482bfd72d55378, 02m30s elapsed]
+aws_lb.app: Destruction complete after 20s
+aws_subnet.public[0]: Destroying... [id=subnet-004e5df2a6ad2289e]
+aws_security_group.alb: Destroying... [id=sg-0fb9f3b416a63b9d5]
+aws_subnet.public[1]: Destroying... [id=subnet-04de17c55a3bbe70e]
+aws_lb.models: Still destroying... [id=arn:aws:elasticloadbalancing:ap-southea...tionsinference-models/e204f73fdf80ecd9, 00m20s elapsed]
+aws_internet_gateway.main: Still destroying... [id=igw-036482bfd72d55378, 02m40s elapsed]
+aws_subnet.public[1]: Destruction complete after 1s
+aws_subnet.public[0]: Destruction complete after 1s
+aws_security_group.alb: Destruction complete after 1s
+aws_internet_gateway.main: Destruction complete after 2m42s
+aws_lb.models: Still destroying... [id=arn:aws:elasticloadbalancing:ap-southea...tionsinference-models/e204f73fdf80ecd9, 00m30s elapsed]
+aws_lb.models: Destruction complete after 31s
+aws_subnet.private[1]: Destroying... [id=subnet-083c5e6b582be9fed]
+aws_security_group.nlb: Destroying... [id=sg-01edd0f84f575b028]
+aws_subnet.private[0]: Destroying... [id=subnet-046697c7f26b34369]
+aws_subnet.private[1]: Destruction complete after 1s
+aws_subnet.private[0]: Destruction complete after 1s
+aws_security_group.nlb: Destruction complete after 1s
+aws_vpc.main: Destroying... [id=vpc-03724b28212b9ec03]
+aws_vpc.main: Destruction complete after 2s
+
+Warning: Argument is deprecated
+
+  with aws_dynamodb_table.state,
+  on dynamodb.tf line 1, in resource "aws_dynamodb_table" "state":
+   1: resource "aws_dynamodb_table" "state" {
+
+hash_key is deprecated. Use key_schema instead.
+
+(and one more similar warning elsewhere)
+
+Destroy complete! Resources: 73 destroyed.

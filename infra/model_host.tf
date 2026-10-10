@@ -2,7 +2,7 @@
 # chaos proxy under docker compose, behind the internal NLB.
 #   gpu: g5.xlarge, Deep Learning AMI, vLLM (Qwen2.5-7B-AWQ) + Speaches CUDA.
 #   cpu: m7a.2xlarge, Amazon Linux 2023, llama.cpp (Qwen2.5-1.5B Q4_K_M) + Speaches CPU.
-#        The fallback when the account has no GPU quota; see docs/cpu-tier.md.
+#        The fallback when the account has no GPU quota; see docs/cpu-model-tier.md.
 
 data "aws_ssm_parameter" "dlami" {
   name = "/aws/service/deeplearning/ami/x86_64/base-oss-nvidia-driver-gpu-amazon-linux-2023/latest/ami-id"

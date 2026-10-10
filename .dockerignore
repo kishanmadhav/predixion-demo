@@ -1,17 +1,8 @@
-.git
-.venv
-infra
-docs
-assets
-teardown
-results
-tests
-data
+# Build context is an allow-list: only what the Dockerfile copies.
+*
+!Dockerfile
+!pyproject.toml
+!uv.lock
+!README.md
+!src/
 **/__pycache__
-*.db*
-.env
-.superpowers
-.claude
-.pytest_cache
-.ruff_cache
-.mypy_cache

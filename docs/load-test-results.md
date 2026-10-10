@@ -1,10 +1,10 @@
 # Round 2: live run results (2026-10-09)
 
-One deployment from `terraform apply`, one rehearsal and one recorded campaign, all on 2026-10-09 in ap-southeast-2. All times are India Standard Time (IST, UTC+5:30), the same as the dashboard renders. The models ran on the CPU tier, an approved deviation described in [`cpu-tier.md`](cpu-tier.md).
+One deployment from `terraform apply`, one rehearsal and one recorded campaign, all on 2026-10-09 in ap-southeast-2. All times are India Standard Time (IST, UTC+5:30), the same as the dashboard renders. The models ran on the CPU tier, an approved deviation described in [`cpu-model-tier.md`](cpu-model-tier.md).
 
 - **Model host:** m7a.2xlarge running llama.cpp (Qwen2.5-1.5B Q4_K_M) and Speaches (faster-whisper-tiny.en, Kokoro-82M).
 - **Fault injection:** 20% throughout, from the chaos proxy in front of the models.
-- **Raw outputs and dashboard renders** are in [`round2-evidence/`](round2-evidence). The renders are PNGs from `cloudwatch:GetMetricWidgetImage`, over the run window.
+- **Raw outputs and dashboard renders** are in [`load-test/`](load-test). The renders are PNGs from `cloudwatch:GetMetricWidgetImage`, over the run window.
 
 ## Timeline (IST, UTC+5:30)
 

@@ -1,6 +1,6 @@
 # Deviation: CPU model tier instead of a GPU
 
-**Status:** approved by Predixion (Juhi Maheshwari, 2026-10-09: "You may work with the alternate approach but please document the same.")
+**Status:** approved by Predixion on 2026-10-09, on condition that the change is documented here.
 
 ## What the brief asked for
 

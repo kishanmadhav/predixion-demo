@@ -15,12 +15,12 @@ A local mock provider stands in for STT/LLM/TTS. It adds realistic latency, fail
 | Resilience layer: retries, backoff, circuit breaking | [`resilience/`](src/voice_agent/resilience), [§ Failure handling](#failure-handling) |
 | Dead letters that can be inspected and replayed | [`store/`](src/voice_agent/store), [`dlq.py`](src/voice_agent/dlq.py), [§ Dead-letter queue](#dead-letter-queue) |
 | Model-agnostic dependency boundary | [`providers/`](src/voice_agent/providers), plus [`docker-compose.openweight.yml`](docker-compose.openweight.yml) for the open-weight stack |
-| Half-page cost write-up **and** one paragraph on swapping the mock for an open-weight model | Submitted separately as a one-page PDF. Its cost figures are computed by [`cost/fargate_cost.py`](cost/fargate_cost.py) (`uv run python -m cost.fargate_cost`); [`docs/writeup_pdf.py`](docs/writeup_pdf.py) rebuilds it with `uv run --with reportlab python docs/writeup_pdf.py` |
+| Half-page cost write-up **and** one paragraph on swapping the mock for an open-weight model | Submitted separately as a one-page PDF. Its cost figures are computed by [`cost/fargate_cost.py`](cost/fargate_cost.py) (`uv run python -m cost.fargate_cost`); [`cost/writeup_pdf.py`](cost/writeup_pdf.py) rebuilds it with `uv run --with reportlab python cost/writeup_pdf.py` |
 | No hardcoded secrets | Keys come only from env (`SecretStr`, no defaults); [`.env.example`](.env.example) is blank |
 | Runs from documented setup | [§ Quick start](#quick-start): `uv sync`, then 3 commands; or `docker compose up --build` |
-| Design spec | [`docs/superpowers/specs/…-design.md`](docs/superpowers/specs/2026-10-05-resilient-voice-agent-design.md) |
+| Design spec | [`docs/design/round1-resilient-voice-agent.md`](docs/design/round1-resilient-voice-agent.md) |
 | **Round 2:** AWS deployment, autoscaling, dashboard, teardown | [§ Round 2: AWS deployment (ap-southeast-2)](#round-2-aws-deployment-ap-southeast-2), [`infra/`](infra) |
-| **Round 2:** live run results, runbook, demo shot list, region notes | [`docs/round2-results.md`](docs/round2-results.md), [`RUNBOOK.md`](RUNBOOK.md), [`docs/demo-shot-list.md`](docs/demo-shot-list.md), [`docs/ap-south-1-notes.md`](docs/ap-south-1-notes.md) |
+| **Round 2:** load-test results, runbook, region notes | [`docs/load-test-results.md`](docs/load-test-results.md), [`RUNBOOK.md`](RUNBOOK.md), [`docs/region-notes.md`](docs/region-notes.md) |
 
 ## Quick start
 
@@ -217,15 +217,29 @@ The mock's `POST /admin/chaos {"stage": "llm", "outage_s": 30}`, `{"failure_rate
 
 ---
 
+## Repository layout
+
+```
+src/voice_agent/      the service: API, STT -> LLM -> TTS pipeline, resilience layer, DLQ, stores
+src/mock_provider/    mock STT/LLM/TTS provider and the chaos proxy used on AWS
+infra/                Terraform for the AWS deployment (Round 2)
+scripts/              IAM check, teardown check, chaos control, utterance generator
+cost/                 cost model, measured-spend report, write-up generator
+tests/                unit, contract and integration tests (pytest)
+docs/design/          design documents for both rounds
+docs/load-test/       raw outputs and dashboard captures from the live run
+assets/utterances/    caller audio used by the load generator
+```
+
 ## Round 2: AWS deployment (ap-southeast-2)
 
 The Round 1 service, deployed to a fresh AWS account in ap-southeast-2 as a production-shaped system. One `terraform apply` builds everything (nothing from the console); it runs a scripted campaign against real open-weight STT/LLM/TTS models on one model host with Round 1's 20% fault injection in front of them, autoscales on in-flight calls, is observable from one CloudWatch dashboard, and is torn down with `terraform destroy` plus a log proving nothing billable remains.
 
-**Region.** The brief asks for ap-south-1 (Mumbai). The deployment account sits in an AWS Organization whose region-restriction SCP allows workloads only in ap-southeast-2 (Sydney), and it could not be edited, so the stack runs in Sydney. Nothing in the code is tied to a region: `terraform apply -var region=ap-south-1 -var 'az_ids=["aps1-az1","aps1-az3"]'` deploys to Mumbai unchanged. [`docs/ap-south-1-notes.md`](docs/ap-south-1-notes.md) explains why Mumbai is the production choice for this workload.
+**Region.** The brief asks for ap-south-1 (Mumbai). The deployment account sits in an AWS Organization whose region-restriction SCP allows workloads only in ap-southeast-2 (Sydney), and it could not be edited, so the stack runs in Sydney. Nothing in the code is tied to a region: `terraform apply -var region=ap-south-1 -var 'az_ids=["aps1-az1","aps1-az3"]'` deploys to Mumbai unchanged. [`docs/region-notes.md`](docs/region-notes.md) explains why Mumbai is the production choice for this workload.
 
-**Models on CPU, not GPU (approved deviation).** The design runs the models on a g5.xlarge. AWS declined the account's GPU quota (new accounts start at 0, and an appeal is pending), so the deployed demo uses `model_tier = "cpu"`: smaller open-weight models (Qwen2.5-1.5B on llama.cpp, faster-whisper-tiny.en, Kokoro) on an m7a.2xlarge, behind the same chaos proxy, with a scaled-down campaign. Everything else is identical, and `model_tier = "gpu"` deploys the GPU design unchanged. Details, and what the CPU run does not show: [`docs/cpu-tier.md`](docs/cpu-tier.md).
+**Models on CPU, not GPU (approved deviation).** The design runs the models on a g5.xlarge. AWS declined the account's GPU quota (new accounts start at 0, and an appeal is pending), so the deployed demo uses `model_tier = "cpu"`: smaller open-weight models (Qwen2.5-1.5B on llama.cpp, faster-whisper-tiny.en, Kokoro) on an m7a.2xlarge, behind the same chaos proxy, with a scaled-down campaign. Everything else is identical, and `model_tier = "gpu"` deploys the GPU design unchanged. Details, and what the CPU run does not show: [`docs/cpu-model-tier.md`](docs/cpu-model-tier.md).
 
-Other documents: [`RUNBOOK.md`](RUNBOOK.md) (what to do when the latency alarm fires), [`docs/demo-shot-list.md`](docs/demo-shot-list.md) (5-minute recording plan with commands), [`docs/ap-south-1-notes.md`](docs/ap-south-1-notes.md) (data residency, latency, AZs, DR), and the design spec [`docs/superpowers/specs/2026-10-07-round2-aws-design.md`](docs/superpowers/specs/2026-10-07-round2-aws-design.md).
+Other documents: [`RUNBOOK.md`](RUNBOOK.md) (what to do when the latency alarm fires), [`docs/load-test-results.md`](docs/load-test-results.md) (the live run, with dashboard captures), [`docs/region-notes.md`](docs/region-notes.md) (data residency, latency, AZs, DR), and the design spec [`docs/design/round2-aws-deployment.md`](docs/design/round2-aws-deployment.md).
 
 ### Architecture
 
@@ -301,7 +315,7 @@ Set `allowed_cidrs` to your own public IP (`curl -s https://checkip.amazonaws.co
 | Variable | Default | Meaning |
 |---|---|---|
 | `allowed_cidrs` | none (required) | Who can reach the ALB |
-| `model_tier` | `mock` | `mock` (Fargate mock provider), `gpu` (g5.xlarge with vLLM and Speaches) or `cpu` (m7a.2xlarge with llama.cpp and Speaches, see [`docs/cpu-tier.md`](docs/cpu-tier.md)) |
+| `model_tier` | `mock` | `mock` (Fargate mock provider), `gpu` (g5.xlarge with vLLM and Speaches) or `cpu` (m7a.2xlarge with llama.cpp and Speaches, see [`docs/cpu-model-tier.md`](docs/cpu-model-tier.md)) |
 | `min_tasks` / `max_tasks` | 2 / 10 | Fargate task floor and ceiling |
 | `target_active_calls` | 10 | Autoscaling target, active calls per task |
 | `campaign_prewarm` | none | `{ start, end, min_tasks }`, `at(...)` or `cron(...)` in UTC. Use `min_tasks = 3`: pre-warm the floor, and let ActiveCalls target tracking scale the spike |
@@ -335,7 +349,7 @@ uv run voice-agent campaign --url $URL --profile smoke:1:10 --turns 2 --gap 5
 
 # 5. Switch to the model host. GPU: model_tier = "gpu" in infra/terraform.tfvars
 #    (docker manifest inspect vllm/vllm-openai:v0.31.0 first: the image tag must exist).
-#    CPU (what the demo ran, docs/cpu-tier.md): model_tier = "cpu" and target_active_calls = 2.
+#    CPU (what the demo ran, docs/cpu-model-tier.md): model_tier = "cpu" and target_active_calls = 2.
 terraform -chdir=infra apply
 # The host downloads its images and model weights before it is ready: allow 15-20 minutes (gpu,
 # about 18 GB) or about 10 minutes (cpu, about 6 GB) before the "Model tier health (NLB healthy
@@ -407,10 +421,10 @@ Measured numbers from Cost Explorer and CloudWatch will replace these estimates 
 
 ### Design decisions, in short
 
-1. **Model tier is EC2 with docker compose**, not ECS-on-EC2 or SageMaker (the `cpu` tier keeps the same shape; see [`docs/cpu-tier.md`](docs/cpu-tier.md)). Only one GPU fits the quota and three model servers must share it; ECS gives a GPU to one container exclusively, and SageMaker wants one GPU instance per endpoint. An ASG (min = max = 1) keeps the host self-healing and an internal NLB gives it a stable address.
+1. **Model tier is EC2 with docker compose**, not ECS-on-EC2 or SageMaker (the `cpu` tier keeps the same shape; see [`docs/cpu-model-tier.md`](docs/cpu-model-tier.md)). Only one GPU fits the quota and three model servers must share it; ECS gives a GPU to one container exclusively, and SageMaker wants one GPU instance per endpoint. An ASG (min = max = 1) keeps the host self-healing and an internal NLB gives it a stable address.
 2. **Fault injection is a proxy mode of the Round 1 mock** (`voice-agent chaos-proxy`). It applies the same 20% failure mix and forwards healthy requests to vLLM and Speaches by path. The service talks to it through the `openai` adapters, which is the Round 1 swap story.
 3. **DynamoDB replaces SQLite**, because Fargate disks are per-task and a scale-in would lose dead letters. One table holds turns and dead letters; `TransactWriteItems` keeps "turn degraded plus dead letter written" atomic. SQS was rejected for the system of record because a send cannot join that transaction. Both store backends pass the same contract tests.
-4. **Autoscaling is on ActiveCalls per task** (target 10, min 2, max 10), emitted as a CloudWatch EMF metric; ALB stickiness keeps each call on one task. A scheduled action pre-warms the floor before a known campaign window; the target-tracking policy does the scaling to the peak.
+4. **Autoscaling is on ActiveCalls per task** (target 10 on the GPU tier, 2 on the CPU tier; min 2, max 10), emitted as a CloudWatch EMF metric; ALB stickiness keeps each call on one task. A scheduled action pre-warms the floor before a known campaign window; the target-tracking policy does the scaling to the peak.
 5. **Observability is EMF plus ALB and Container Insights metrics**, with one dashboard (traffic, capacity, dependencies) and alarms for p99 latency over 3x baseline, 5xx (target and ALB-generated), open breakers and DLQ growth. The EMF flush interval is 10 s (`EMF_INTERVAL_S`), deliberately short so the dashboard and the ActiveCalls scaling signal react within a minute, at the cost of a few more metric datapoints.
 6. **IAM uses custom policies with explicit actions only.** `scripts/check_iam.py` fails on any `*` action or AWS-managed policy attachment; the checker has its own tests in `tests/scripts`.
 7. **Cost guardrails:** the budget is a one-time CLI step (above, not in the Terraform); the model host dead-man switch is in the IaC, and `teardown_check.py` proves the destroy.
@@ -424,10 +438,9 @@ Measured numbers from Cost Explorer and CloudWatch will replace these estimates 
 | Service changes for AWS (DynamoDB store, EMF metrics, call tracking, `campaign` command, chaos proxy) | [`src/voice_agent`](src/voice_agent), [`src/mock_provider`](src/mock_provider) |
 | Scripts | [`scripts/chaos.py`](scripts/chaos.py), [`scripts/check_iam.py`](scripts/check_iam.py), [`scripts/teardown_check.py`](scripts/teardown_check.py), [`scripts/make_utterances.ps1`](scripts/make_utterances.ps1) |
 | Runbook | [`RUNBOOK.md`](RUNBOOK.md) |
-| 5-minute demo shot list | [`docs/demo-shot-list.md`](docs/demo-shot-list.md) |
-| Region notes | [`docs/ap-south-1-notes.md`](docs/ap-south-1-notes.md) |
-| Live run results: campaign table, autoscaling, outage and replay, lessons | [`docs/round2-results.md`](docs/round2-results.md), raw outputs and dashboard renders in [`docs/round2-evidence/`](docs/round2-evidence) |
-| CPU-tier deviation (approved) | [`docs/cpu-tier.md`](docs/cpu-tier.md) |
+| Region notes | [`docs/region-notes.md`](docs/region-notes.md) |
+| Live run results: campaign table, autoscaling, outage and replay, lessons | [`docs/load-test-results.md`](docs/load-test-results.md), raw outputs and dashboard renders in [`docs/load-test/`](docs/load-test) |
+| CPU-tier deviation (approved) | [`docs/cpu-model-tier.md`](docs/cpu-model-tier.md) |
 | Cost write-up | This section holds the estimate. The one-page PDF (Round 1 cost, and the swap-the-mock paragraph) is sent separately and is not in the repo, and Round 2's measured spend is in the Cost section, from `uv run python -m cost.measured` |
-| Teardown proof | `teardown/*.log`, written by `teardown_check.py` and committed after the destroy |
+| Teardown proof | [`teardown/`](teardown): the log written by `teardown_check.py` after the destroy |
 | Reimbursement | The billing PDF is supplied separately by the account owner |

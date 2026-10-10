@@ -157,7 +157,7 @@ Fill in the placeholders when the stack is deployed, and do not leave any in a l
 ## Post-incident
 
 1. **Confirm recovery.** All three breakers at 0 on the dashboard, p99 back under the alarm line, and `curl -s $URL/health` shows `closed` for each stage. Wait until every breaker is closed (poll `/health`, or watch the "Circuit breakers" widget) before replaying.
-2. **Replay the dead letters in batches: 50 on the GPU tier, 10 on the CPU tier.** On a constrained model tier, replay after the campaign window, not during it: a replay competes with live calls for the same models. In the 2026-10-09 run a 64-entry replay mid-spike opened the STT breaker for 5 minutes (see `docs/round2-results.md`). Loop until nothing is pending:
+2. **Replay the dead letters in batches: 50 on the GPU tier, 10 on the CPU tier.** On a constrained model tier, replay after the campaign window, not during it: a replay competes with live calls for the same models. In the 2026-10-09 run a 64-entry replay mid-spike opened the STT breaker for 5 minutes (see `docs/load-test-results.md`). Loop until nothing is pending:
 
    ```bash
    curl -s -X POST "$URL/v1/dlq/replay?limit=50"

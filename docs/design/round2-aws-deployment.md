@@ -1,6 +1,6 @@
-# Round 2: production-shaped AWS deployment (ap-south-1) — Design
+# Round 2: production-shaped AWS deployment — Design
 
-Date: 2026-10-07 · Status: draft for approval
+Date: 2026-10-07 · Status: implemented. Written for ap-south-1 and a g5.xlarge; the deployed run used ap-southeast-2 and the CPU model tier (see README, "Region" and "Models on CPU", and `docs/cpu-model-tier.md`).
 
 ## Goal
 

@@ -31,7 +31,7 @@ variable "allowed_cidrs" {
 }
 
 variable "model_tier" {
-  description = "mock: mock provider on Fargate (cheap infra check). gpu: g5.xlarge with vLLM + Speaches. cpu: m7a.2xlarge with llama.cpp + Speaches (no-GPU-quota fallback, docs/cpu-tier.md)."
+  description = "mock: mock provider on Fargate (cheap infra check). gpu: g5.xlarge with vLLM + Speaches. cpu: m7a.2xlarge with llama.cpp + Speaches (no-GPU-quota fallback, docs/cpu-model-tier.md)."
   type        = string
   default     = "mock"
   validation {
