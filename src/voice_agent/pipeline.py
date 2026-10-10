@@ -131,7 +131,7 @@ class TurnPipeline:
                 "could not write ahead turn %s/%s; playing the fallback", call_id, turn_id
             )
             prompt = self.fallbacks[Action.RETRY_PROMPT]
-            self.metrics.turns.labels("unrecorded").inc()
+            self.metrics.observe_turn("unrecorded", None)
             return TurnResult(
                 call_id=call_id,
                 turn_id=turn_id,
@@ -185,8 +185,7 @@ class TurnPipeline:
             # The caller still gets the reply; the lease sweeper dead-letters the turn.
             log.exception("could not record completed turn %s/%s", call_id, turn_id)
         duration = self._clock() - started
-        self.metrics.turns.labels(TurnStatus.COMPLETED.value).inc()
-        self.metrics.turn_seconds.labels(TurnStatus.COMPLETED.value).observe(duration)
+        self.metrics.observe_turn(TurnStatus.COMPLETED.value, duration)
         return TurnResult(
             call_id=call_id,
             turn_id=turn_id,
@@ -284,11 +283,10 @@ class TurnPipeline:
                 partial=failure.partial,
                 action=action.value,
             )
-            self.metrics.dead_letters.labels("stage_failed").inc()
+            self.metrics.observe_dead_letter("stage_failed")
         except Exception:
             # Still play the fallback; the lease sweeper dead-letters the turn later.
             log.exception("could not dead-letter turn %s/%s", call_id, turn_id)
-        self.metrics.turns.labels(TurnStatus.DEGRADED.value).inc()
         log.warning(
             "turn degraded call=%s turn=%s stage=%s kind=%s dlq_id=%s action=%s",
             call_id,
@@ -300,7 +298,7 @@ class TurnPipeline:
         )
         prompt = self.fallbacks[action]
         duration = self._clock() - started
-        self.metrics.turn_seconds.labels(TurnStatus.DEGRADED.value).observe(duration)
+        self.metrics.observe_turn(TurnStatus.DEGRADED.value, duration)
         return TurnResult(
             call_id=call_id,
             turn_id=turn_id,

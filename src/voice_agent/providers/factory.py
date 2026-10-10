@@ -42,7 +42,11 @@ def build_providers(settings: Settings, client: httpx.AsyncClient) -> Providers:
 
     if settings.llm_provider == "openai":
         llm = OpenAICompatLlm(
-            client, settings.llm_base_url, model=settings.llm_model, api_key=settings.llm_api_key
+            client,
+            settings.llm_base_url,
+            model=settings.llm_model,
+            api_key=settings.llm_api_key,
+            max_tokens=settings.llm_max_tokens,
         )
     else:
         llm = MockLlm(client, settings.llm_base_url)

@@ -1,6 +1,6 @@
 """Builds docs/writeup.pdf: the one-page cost write-up and model-swap note.
 
-    uv run --with reportlab python docs/writeup_pdf.py
+    uv run --with reportlab python cost/writeup_pdf.py
 
 The cost figures come from cost/fargate_cost.py (they are computed here, not typed in),
 so the PDF cannot drift from the calculator.

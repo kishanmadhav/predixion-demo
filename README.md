@@ -1,211 +1,112 @@
 # Resilient collections voice agent
 
-A collections voice-agent inference service. Each caller turn goes through **STT → LLM → TTS**, and a resilience layer around the pipeline keeps a flaky provider from dropping the call:
-- **Retries** with exponential backoff and full jitter.
-- **A circuit breaker for each stage.**
-- **Graceful degradation** to a pre-rendered fallback prompt.
-- **A dead-letter queue** that lives in SQLite and can be inspected and replayed. Every failed turn is written to it *before* the caller hears the fallback.
+A voice agent for loan-collection calls. Each thing a caller says goes through **speech-to-text → LLM → text-to-speech**. The point of the project is what happens when those models fail: the call keeps going, and nothing the caller said is lost.
 
-A local mock provider stands in for STT/LLM/TTS. It adds realistic latency, fails 20% of requests, and can force outages on demand. The provider boundary is model-agnostic: open-weight models (faster-whisper, Ollama/vLLM/llama.cpp, Kokoro) replace the mock through configuration alone.
+- **Retries** with backoff and jitter, inside a per-turn deadline.
+- **A circuit breaker per stage**, so a dead model is not hammered.
+- **A fallback prompt** (or a handoff to a human) when a turn cannot complete.
+- **A dead-letter queue**: every failed turn is saved, can be inspected, and can be replayed later.
 
-| Brief | Where |
+Round 1 built and tested this locally against a mock provider that fails 20% of requests. Round 2 deployed it to AWS with Terraform, autoscaling, a CloudWatch dashboard and a live load test against real open-weight models.
+
+## Results from the AWS load test
+
+A 35-minute campaign on 9 October 2026, with 20% of model calls failing on purpose and a full LLM outage in the middle ([details](docs/load-test-results.md)):
+
+| | |
 |---|---|
-| Resilience layer: retries, backoff, circuit breaking | [`resilience/`](src/voice_agent/resilience), [§ Failure handling](#failure-handling) |
-| Dead letters that can be inspected and replayed | [`store.py`](src/voice_agent/store.py), [`dlq.py`](src/voice_agent/dlq.py), [§ Dead-letter queue](#dead-letter-queue) |
-| Model-agnostic dependency boundary | [`providers/`](src/voice_agent/providers), plus [`docker-compose.openweight.yml`](docker-compose.openweight.yml) for the open-weight stack |
-| Half-page cost write-up **and** one paragraph on swapping the mock for an open-weight model | Submitted separately as a one-page PDF. Its cost figures are computed by [`cost/fargate_cost.py`](cost/fargate_cost.py) (`uv run python -m cost.fargate_cost`); [`docs/writeup_pdf.py`](docs/writeup_pdf.py) rebuilds it with `uv run --with reportlab python docs/writeup_pdf.py` |
-| No hardcoded secrets | Keys come only from env (`SecretStr`, no defaults); [`.env.example`](.env.example) is blank |
-| Runs from documented setup | [§ Quick start](#quick-start): `uv sync`, then 3 commands; or `docker compose up --build` |
-| Design spec | [`docs/superpowers/specs/…-design.md`](docs/superpowers/specs/2026-10-05-resilient-voice-agent-design.md) |
+| Turns handled | 522, with **0 failed HTTP requests** |
+| Autoscaling | 2 → 7 tasks within 3 minutes of the spike, back down afterwards |
+| LLM outage (60 s) | Breaker opened in 45 s; callers got a fallback; 64 dead letters, all replayed |
+| Teardown | `terraform destroy` removed 73 resources; [check log](teardown) shows nothing billable left |
 
-## Quick start
+![Tasks scaling with the call spike](docs/load-test/05-tasks-desired-vs-running-autoscaling.png)
 
-You need Python ≥ 3.11 and [uv](https://docs.astral.sh/uv/). No AWS account, API keys or GPU are needed.
+## Run it locally
 
-```bash
-uv sync                                   # install
-uv run pytest -q                          # 187 tests, ~15 s
-
-# terminal 1: mock STT/LLM/TTS provider, 20% failure rate
-uv run voice-agent mock --port 9000
-# terminal 2: the service
-uv run voice-agent serve                  # http://127.0.0.1:8080, docs at /docs
-# terminal 3: traffic
-uv run voice-agent loadtest               # 50 calls x 4 turns, compares both sides
-uv run voice-agent chaos-demo             # baseline -> LLM outage -> recovery -> replay
-```
-
-With Docker instead: `docker compose up --build`, then run `loadtest` / `chaos-demo` from the host. To use the DLQ CLI inside the container, run `docker compose exec agent voice-agent dlq list`.
-
-One turn by hand:
+You need Python 3.11+ and [uv](https://docs.astral.sh/uv/). No AWS account, API keys or GPU.
 
 ```bash
-curl -s localhost:8080/v1/calls/call-1/turns -H 'content-type: application/json' \
-  -d '{"turn_id": "t1", "audio_b64": "aGVsbG8="}'
+uv sync
+uv run pytest -q                    # ~280 tests, about 40 s
+
+uv run voice-agent mock --port 9000 # terminal 1: mock models, 20% failure rate
+uv run voice-agent serve            # terminal 2: the service on :8080 (API docs at /docs)
+uv run voice-agent loadtest         # terminal 3: 50 calls, 4 turns each
+uv run voice-agent chaos-demo       # LLM outage -> breaker opens -> recovery -> replay
 ```
 
-<details><summary>Output from one local run (Windows laptop, real processes)</summary>
+Or with Docker: `docker compose up --build`.
 
-`loadtest`:
+Look at the dead letters:
 
-```
-turns sent:          240
-  completed:         237
-  degraded:          3  (handoff: 0)
-  HTTP failures:     0   <- should always be 0
-degradation causes:  stt:server_error=1, stt:rate_limited=1, tts:rate_limited=1
-breakers:            stt=closed, llm=closed, tts=closed
-dead letters:        pending=3, replaying=0, resolved=0
-provider received (requests / ok / failed):
-  stt:   303 /   238 /    65
-  llm:   293 /   238 /    55
-  tts:   288 /   237 /    51
+```bash
+uv run voice-agent dlq list
+uv run voice-agent dlq replay --all
 ```
 
-`chaos-demo` (excerpt). LLM traffic stays flat while its breaker is open (90 → 90 → 93, and the extra 3 are half-open probes), and every degraded turn is dead-lettered and later replayed:
-
-```
-  [outage t+3s ] breakers: stt=closed llm=open   tts=closed  provider requests: stt=85  llm=90  tts=69  dlq pending=16
-  [outage t+6s ] breakers: stt=closed llm=open   tts=closed  provider requests: stt=99  llm=90  tts=69  dlq pending=26
-  [outage t+9s ] breakers: stt=closed llm=open   tts=closed  provider requests: stt=112 llm=93  tts=69  dlq pending=36
-  [recovery t+7s] breakers: stt=closed llm=closed tts=closed provider requests: stt=129 llm=101 tts=75  dlq pending=46
-4) Replay the dead-letter queue now that the provider is healthy.
-   replay results: {'resolved': 43, 'failed': 3}
-```
-
-The 3 failed replays hit the mock's normal 20% failure rate on every retry. They remain `pending` and can be replayed again.
-</details>
-
-## Architecture
+## How it works
 
 ```
 POST /v1/calls/{call_id}/turns
-  └─ TurnPipeline  (per-turn deadline, default 6 s)
-       ├─ write-ahead: turn row = in_progress            ── SQLite (WAL, synchronous=FULL)
-       ├─ ResilientStage("stt") = Retry(Breaker(Timeout(SttProvider.transcribe)))
-       ├─ ResilientStage("llm") = Retry(Breaker(Timeout(LlmProvider.complete)))
-       ├─ ResilientStage("tts") = Retry(Breaker(Timeout(TtsProvider.synthesize)))
-       ├─ success → turn = completed, reply audio returned
-       └─ failure → ONE transaction: turn = degraded + dead_letters row
-                    → return pre-rendered fallback audio + action (retry_prompt | handoff)
-
-providers/  base.py (Protocols + ProviderError)  ← the only thing resilience/ and pipeline know
-            mock.py | openai_compat.py           ← adapters; factory.py picks one per stage
+  └─ TurnPipeline (per-turn deadline)
+       ├─ save the turn as in_progress
+       ├─ STT ─► LLM ─► TTS     each wrapped as Retry(Breaker(Timeout(call)))
+       ├─ success: save as completed, return the reply audio
+       └─ failure: in ONE transaction, mark the turn degraded and write a dead letter,
+                   then return a pre-recorded fallback (retry prompt, or handoff after 2 in a row)
 ```
 
-| Module | Responsibility |
-|---|---|
-| `providers/base.py` | `SttProvider` / `LlmProvider` / `TtsProvider` Protocols, plus `ProviderError(kind)`, the error taxonomy |
-| `providers/http.py` | The only place that maps HTTP and transport failures to error kinds |
-| `resilience/retry.py`, `breaker.py`, `stage.py` | Retry policy, circuit breaker, and the composition of the two. No HTTP, no adapter imports |
-| `pipeline.py` | One turn end to end: degradation, handoff decision, call history for the LLM |
-| `store.py`, `dlq.py` | Audit log, dead letters, crash recovery, replay |
-| `api.py`, `cli.py`, `wiring.py` | HTTP API, operator CLI, and the single wiring that API, CLI and tests share |
-| `mock_provider/app.py` | The mock "provider having a bad day" |
+- **Providers are swappable.** The pipeline only knows three small interfaces. Switching from the mock to real models (faster-whisper, vLLM or llama.cpp, Kokoro) is configuration, not code: see [`docker-compose.openweight.yml`](docker-compose.openweight.yml).
+- **Failures are classified.** Timeouts, 5xx, 429 and garbage responses are retried and count against the breaker. A 4xx means our request is wrong, so it is not retried and never trips the breaker.
+- **The breaker opens at 60% failures** over its last 50 calls. The normal 20% failure rate never trips it, and a real outage trips it within about 9 turns.
+- **Nothing is lost.** A turn is saved before any model is called, and a crash mid-turn is picked up and dead-lettered on restart.
 
-## Failure handling
+The full details (thresholds and why, replay semantics, configuration, tests) are in [docs/failure-handling.md](docs/failure-handling.md).
 
-**Error taxonomy.** Adapters turn every failure into a `ProviderError` with a `kind`:
+## On AWS
 
-| Kind | Source | Retried | Counts toward breaker |
-|---|---|:-:|:-:|
-| `timeout`, `connection` | attempt timeout, connect/read errors, HTTP 408 | ✓ | ✓ |
-| `rate_limited` | 429 (honours `Retry-After`) | ✓ | ✓ |
-| `server_error` | 5xx | ✓ | ✓ |
-| `malformed` | a 2xx with an unparseable or wrong-shaped body | ✓ | ✓ |
-| `client_error`, `auth` | 400/404/422, 401/403 | ✗ | ✗ |
-
-A 4xx means *our* request or configuration is wrong. The provider itself is healthy, so a 4xx never trips the breaker. Bugs in our own code are not `ProviderError`s, so they are never retried, but they are still dead-lettered.
-
-**Retry** ([`retry.py`](src/voice_agent/resilience/retry.py)):
-- Up to 3 attempts. The delay is `uniform(0, min(2 s, 0.1 s · 2ⁿ))` (full jitter), so many calls failing together don't retry in lock-step.
-- `Retry-After` is honoured, capped at the maximum delay.
-- Retries stay inside the turn deadline: no backoff sleeps past it, no attempt starts with less than 50 ms left, and each attempt's timeout is `min(stage timeout, remaining budget)`. A hung provider costs at most one attempt timeout.
-
-**Circuit breaker** ([`breaker.py`](src/voice_agent/resilience/breaker.py)), one per stage:
-- **Opening:** it looks at a rolling window of the last 50 counted calls and opens when a *failure* brings the failure rate to ≥ 60% (with at least 20 calls in the window).
-- **Why those thresholds:** the baseline 20% failure rate must not trip it. I simulated the breaker class itself rather than relying on back-of-envelope binomials:
-  - At 50% the breaker false-tripped in 0.5% of 3,000-attempt runs, mostly during the 20-call warm-up.
-  - At 60% the chance of a false trip drops to about 1 in 10,000 per breaker warm-up, at service start-up or after a recovery (analytically P(≥ 12 of 20) ≈ 1.0e-4; simulated 8.8e-5). In steady state it never tripped across about 30 million attempts.
-  - At 60% a real outage still trips it within 27 attempts, about 9 turns.
-- **While open:** for 5 s, calls are rejected immediately with `circuit_open`. Nothing is sent to the provider and the caller sees no added latency. A rejection is never retried.
-- **Half-open:** up to 5 probe calls are let through, and a majority decides. Mostly successes close the circuit with an empty window; mostly failures reopen it with a fresh cool-down. A single flaky probe can't cause flapping.
-- **Stale results:** each permit carries the breaker's epoch, so a slow call admitted before a state change can't be miscounted as a probe.
-- **Composition:** the order is `Retry(Breaker(attempt))`. Every attempt asks the breaker first, so an outage that starts mid-retry stops the retry loop.
-- **Stages are independent:** a TTS outage doesn't stop STT. STT still runs during an LLM outage, so the dead letter records the caller's words.
-
-**Degradation** ([`pipeline.py`](src/voice_agent/pipeline.py)). A turn is never dropped, and it is always recorded:
-1. The turn row is written (`in_progress`) before any provider is called.
-2. On failure, the turn is marked `degraded` and its dead-letter row is inserted, both in one transaction, before the response is sent. This covers provider errors, open circuits, blown deadlines, our own bugs, and cancellation (for example at shutdown). Finalization runs shielded from cancellation, so a recording that has started always finishes.
-3. The caller still gets **HTTP 200 with audio**: a pre-rendered fallback prompt that doesn't depend on the TTS stage that may have just failed, plus `action`. The action is `retry_prompt`, or `handoff` (transfer to a human / schedule a callback) after 2 consecutive degraded turns on the same call.
-4. A process crash mid-turn leaves an `in_progress` row behind. At the next start-up, `Store.recover()` marks those turns `interrupted` and dead-letters them.
-5. While the service runs, a **lease sweeper** (every 30 s) does the same for any turn untouched for longer than `max(60 s, 3 × turn deadline)`. It also returns any `replaying` claim older than that to `pending`. So even a failed database write can't strand a record until the next restart. A failed write doesn't drop the call either: the caller still gets their audio. If even the write-ahead fails (storage down), the turn isn't processed, the caller hears the fallback, and the error is logged loudly. That is the one case with no record.
-6. Every state transition is guarded in SQL (`UPDATE … WHERE status = <expected>`), so a stale or concurrent writer can never skip or reverse a state.
-
-Duplicate turn ids (a telephony retry) never re-run the providers. They return `409` with the original outcome:
-- **Completed turns:** the reply text. Audio isn't stored, so it isn't returned.
-- **Degraded or in-progress turns:** the fallback prompt, both text and audio, for the stored `action`.
-
-`/health` never depends on provider health. That way a provider outage can't make the load balancer recycle orchestrator tasks that are degrading correctly. It still reports breaker states and DLQ counts. `/metrics` exposes Prometheus counters for attempts, retries, breaker state and transitions, turns, dead letters and replays.
-
-## Dead-letter queue
-
-A dead letter is a row in the `dead_letters` table of `data/voice_agent.db`. It holds:
-- the original request (the audio),
-- the failed stage and error kind,
-- **every attempt** (stage, attempt number, outcome, error, HTTP status, duration, backoff),
-- partial results (for example, the transcript when only the LLM failed),
-- replay bookkeeping.
-
-```bash
-uv run voice-agent dlq list [--status pending] [--json]   # table of entries + counts
-uv run voice-agent dlq show 7                             # full entry incl. attempts
-uv run voice-agent dlq replay 7 9                         # replay specific entries
-uv run voice-agent dlq replay --all                       # replay every pending entry
-sqlite3 data/voice_agent.db 'select id, failed_stage, error_kind, status from dead_letters'
+```
+ load generator ──► ALB (only my IP) ──► ECS Fargate "voice-agent" (private subnets, 2-10 tasks)
+                                            │ scales on active calls per task (custom metric)
+                                            │ DynamoDB: turns + dead letters
+                                            ▼
+                                internal NLB ──► model server (EC2, private subnet)
+                                                 chaos proxy (20% failures) ─► LLM, STT, TTS
 ```
 
-The same operations are available over HTTP: `GET /v1/dlq`, `GET /v1/dlq/{id}`, `POST /v1/dlq/{id}/replay`, and `POST /v1/dlq/replay`. `GET /v1/calls/{call_id}` returns a call's full turn-by-turn audit trail.
+Everything is built by one `terraform apply` in [`infra/`](infra). It includes:
+- a VPC with private subnets and a NAT gateway;
+- least-privilege IAM roles, with a script that rejects any wildcard permission;
+- a CloudWatch dashboard and alarms;
+- a dead-man switch that turns the model server off after 3 hours.
 
-**Replay semantics** ([`dlq.py`](src/voice_agent/dlq.py)):
-- **Claiming:** an entry is claimed atomically (`pending → replaying`), so two operators can never replay it at the same time.
-- **Running:** the stored turn re-runs through the *same* resilient pipeline and the same breakers. A provider that is still down fails fast instead of being hammered.
-- **Success:** the turn becomes `completed_on_replay`, with the transcript and reply recorded. The entry is marked `resolved`.
-- **Failure:** the entry returns to `pending`, with `replay_count + 1` and the error recorded.
-- **Open circuit:** while any circuit is open, a replay is `skipped` (HTTP 503) without being claimed or charged a `replay_count`. It would only fail fast.
-- **Bulk replay:** it replays one entry at a time until one has *resolved* and every circuit is closed. That first success is the canary, needed because a fresh CLI process's breakers know nothing of an ongoing outage. If a replay is deferred or fails for any reason other than its own unusable payload, it stops and marks the rest `skipped` (untouched). After that it runs 8 entries at a time.
-- **CLI safety:** the CLI's `dlq replay` is safe to run while the service is running. It never runs recovery, so it can't reclaim the service's in-flight turns, and atomic claims prevent double replays.
-- **Purpose:** the live moment has passed, so a replay *completes the compliance record* (what the debtor said, what the agent would have said) and can drive a callback. It doesn't speak to the caller.
+Two things differ from the brief, both documented:
 
-## Configuration
+- **Region: Sydney, not Mumbai.** The AWS account's organization only allows ap-southeast-2. Mumbai is one variable away: `-var region=ap-south-1`. Why Mumbai is the right production choice: [docs/region-notes.md](docs/region-notes.md).
+- **Models on CPU, not GPU.** AWS declined the GPU quota for the new account. With Predixion's approval, the models run on an 8-core CPU server (Qwen2.5-1.5B, faster-whisper, Kokoro) with a lighter campaign. `model_tier = "gpu"` deploys the original g5.xlarge design. Details: [docs/cpu-model-tier.md](docs/cpu-model-tier.md).
 
-Everything is set through environment variables (or `.env`). See [`.env.example`](.env.example) for the full list and its defaults. There are no secrets in the repo: API keys (`*_API_KEY`) are optional, have no default, and are held as `SecretStr` so they never appear in logs or reprs. A key is sent as `Authorization: Bearer` only when it is set. The mock reads `MOCK_FAILURE_RATE`, `MOCK_SEED`, `MOCK_LATENCY_SCALE` and `MOCK_HANG_S` from the process environment.
+To deploy it yourself, follow [docs/aws-deployment.md](docs/aws-deployment.md). To operate it when an alarm fires, use [RUNBOOK.md](RUNBOOK.md).
 
-**Pointing at a different mock:**
-- If your mock serves this JSON shape (`POST {base}/stt|llm|tts`), set `*_BASE_URL`.
-- If it speaks the OpenAI-compatible API, set `*_PROVIDER=openai`.
-- Otherwise, add an adapter in `providers/`. Nothing else changes.
+## Cost
 
-The mock's `POST /admin/chaos {"stage": "llm", "outage_s": 30}`, `{"failure_rate": 0.5}`, `GET /admin/stats` and `POST /admin/reset` drive the scenarios shown above.
+| | Estimate (CPU tier) | Measured |
+|---|---|---|
+| Total for Round 2 | about $4.65 (about $6 with a buffer) | Cost Explorer, final figure to follow (AWS data lags a day) |
 
-## Tests
+The model server and the NAT gateway dominate. Spend was capped by a $10 budget with email alerts, the 3-hour dead-man switch, and a destroy after every session. The line-by-line estimate is in [docs/aws-deployment.md](docs/aws-deployment.md#cost); `uv run python -m cost.measured --start 2026-10-08 --end 2026-10-11` reports actual spend by service.
 
-`uv run pytest -q` runs 187 tests in about 15 s. CI also runs `ruff`, `ruff format --check`, `mypy --strict` and a Docker build.
+## Repository layout
 
-- **Unit tests:** retry jitter bounds and determinism; every breaker transition, including stale-epoch outcomes and probe limits; and the stage composition, all with a fake clock.
-- **Adapter contract tests:** run with `httpx.MockTransport`.
-- **Store and DLQ tests:** atomicity, exclusive claims, crash recovery, replay backpressure.
-- **End-to-end tests** ([`tests/test_e2e.py`](tests/test_e2e.py)): the real wiring runs against the real mock app in-process, and the assertions are made from the **provider's side**:
-  - At 20% failure, every turn ends `completed` or `degraded` with a dead letter, and the provider sees retries.
-  - During a forced outage, the provider's request count stays flat while the breaker is open.
-  - The breaker half-opens and closes after recovery, and dead letters replay cleanly.
-  - A hung provider is cut off by the deadline.
+```
+src/voice_agent/     the service: API, pipeline, resilience layer, dead-letter queue, stores
+src/mock_provider/   mock models and the chaos proxy used on AWS
+infra/               Terraform for AWS
+scripts/             IAM check, teardown check, chaos control
+cost/                cost model and measured-spend report
+tests/               unit, contract and end-to-end tests
+docs/                design docs, load-test results, deployment guide
+teardown/            proof that nothing was left running
+```
 
-## Production notes and next steps
-
-- **Distributed state:** breaker state is per process, which suits Fargate tasks that each protect themselves. The dead-letter store would become a managed queue plus a table (SQS + DynamoDB, or Postgres) instead of a local SQLite file.
-- **Data protection:** transcripts and audio in collections are sensitive. They need encryption at rest, a retention policy, and access audit on the DLQ.
-- **Schema changes** are versioned (`PRAGMA user_version`). Older databases, such as a `data/` directory or the `agent-data` Docker volume from an earlier build, are migrated in place at start-up.
-- **Authentication:** the API (including the DLQ endpoints, which expose audio and transcripts) has no auth, a stated non-goal for this local exercise. In production it would sit behind service-to-service auth.
-- **Streaming:** real calls stream audio (WebSocket/RTP) with partial transcripts. The turn-level boundary used here stays the same, and the stage timeouts become time-to-first-token budgets.
-- **Hedging:** hedged requests or a fallback provider per stage (for example, a smaller LLM when the primary's breaker is open) would let more turns complete instead of degrading.
+CI runs the tests, `ruff`, `mypy --strict`, a Docker build and `terraform validate` on every push.

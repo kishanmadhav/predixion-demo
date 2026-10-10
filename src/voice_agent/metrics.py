@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, generate_latest
 
+from voice_agent.emf import EmfReporter
 from voice_agent.resilience.breaker import BreakerState
 from voice_agent.resilience.stage import AttemptRecord
 
@@ -11,7 +12,8 @@ BREAKER_STATE_VALUE = {BreakerState.CLOSED: 0, BreakerState.HALF_OPEN: 1, Breake
 
 
 class Metrics:
-    def __init__(self) -> None:
+    def __init__(self, emf: EmfReporter | None = None) -> None:
+        self.emf = emf
         self.registry = CollectorRegistry()
         r = self.registry
         self.attempts = Counter(
@@ -46,15 +48,39 @@ class Metrics:
         self.replays = Counter(
             "dlq_replays", "Dead-letter replays, by result", ["result"], registry=r
         )
+        self.active_calls = Gauge("active_calls", "Calls this task is holding", registry=r)
+        self.in_flight_turns = Gauge("in_flight_turns", "Turns being processed", registry=r)
+
+    def observe_turn(self, status: str, seconds: float | None) -> None:
+        self.turns.labels(status).inc()
+        if seconds is not None:
+            self.turn_seconds.labels(status).observe(seconds)
+        if self.emf:
+            self.emf.turn(status, seconds)
+
+    def observe_dead_letter(self, reason: str) -> None:
+        self.dead_letters.labels(reason).inc()
+        if self.emf:
+            self.emf.dead_letter()
+
+    def observe_replay(self, status: str) -> None:
+        self.replays.labels(status).inc()
+        if self.emf:
+            self.emf.replay(status)
 
     def observe_attempt(self, stage: str, record: AttemptRecord) -> None:
         self.attempts.labels(stage, record.outcome, record.error_kind or "").inc()
-        if record.attempt > 1 and record.outcome != "rejected":
+        is_retry = record.attempt > 1 and record.outcome != "rejected"
+        if is_retry:
             self.retries.labels(stage).inc()
+        if self.emf:
+            self.emf.attempt(stage, record.outcome, retry=is_retry)
 
     def observe_transition(self, stage: str, old: BreakerState, new: BreakerState) -> None:
         self.breaker_state.labels(stage).set(BREAKER_STATE_VALUE[new])
         self.breaker_transitions.labels(stage, old.value, new.value).inc()
+        if self.emf:
+            self.emf.breaker(stage, BREAKER_STATE_VALUE[new])
 
     def render(self) -> bytes:
         return generate_latest(self.registry)

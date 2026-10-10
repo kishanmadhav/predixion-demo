@@ -196,3 +196,21 @@ def test_settings_read_stage_config_from_environment(monkeypatch: pytest.MonkeyP
     assert settings.llm_api_key is not None
     assert settings.llm_api_key.get_secret_value() == "from-env"
     assert "from-env" not in repr(settings)
+
+
+async def test_factory_caps_llm_reply_length_from_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("LLM_MAX_TOKENS", raising=False)
+    assert Settings(_env_file=None).llm_max_tokens == 200
+    monkeypatch.setenv("LLM_MAX_TOKENS", "80")
+    settings = Settings(_env_file=None, llm_provider="openai", llm_base_url="http://vllm/v1")
+    assert settings.llm_max_tokens == 80
+    rec = Recorder(httpx.Response(200, json={"choices": [{"message": {"content": "Sure."}}]}))
+    async with rec.client() as client:
+        providers = build_providers(settings, client)
+        await providers.llm.complete([ChatMessage("user", "hi")])
+    assert json.loads(rec.last.content)["max_tokens"] == 80
+
+
+def test_llm_max_tokens_must_be_positive() -> None:
+    with pytest.raises(ValueError):
+        Settings(_env_file=None, llm_max_tokens=0)

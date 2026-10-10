@@ -8,12 +8,17 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 import httpx
 
+from voice_agent.calls import CallTracker
 from voice_agent.config import Settings
 from voice_agent.dlq import DeadLetterService
+from voice_agent.emf import EmfReporter, write_stdout
 from voice_agent.fallback import load_fallbacks
 from voice_agent.metrics import Metrics
 from voice_agent.pipeline import TurnPipeline
@@ -21,11 +26,17 @@ from voice_agent.providers.factory import Providers, build_providers
 from voice_agent.resilience.breaker import CircuitBreaker
 from voice_agent.resilience.retry import RetryPolicy
 from voice_agent.resilience.stage import ResilientStage
-from voice_agent.store import Store
+from voice_agent.store import Store, open_store
 
 STAGE_NAMES = ("stt", "llm", "tts")
 
 log = logging.getLogger(__name__)
+
+
+def lease_seconds(settings: Settings) -> float:
+    """How long a turn or a replay claim may sit untouched before it is reclaimed:
+    comfortably longer than any turn can legitimately run."""
+    return max(60.0, 3 * settings.turn_deadline_s)
 
 
 @dataclass
@@ -38,20 +49,21 @@ class Runtime:
     pipeline: TurnPipeline
     dlq: DeadLetterService
     recovered_dead_letters: list[int]
+    calls: CallTracker
+    emf: EmfReporter | None
     _client: httpx.AsyncClient | None
 
     @property
     def lease_s(self) -> float:
-        """How long a turn or a replay claim may sit untouched before the sweeper
-        reclaims it: comfortably longer than any turn can legitimately run."""
-        return max(60.0, 3 * self.settings.turn_deadline_s)
+        """The sweeper's lease (see `lease_seconds`)."""
+        return lease_seconds(self.settings)
 
     async def sweep(self) -> list[int]:
         """Reclaim work orphaned while the service kept running (a cancelled request,
         a failed write). Returns the dead-letter ids it created."""
         ids = await self.store.recover(stale_after_s=self.lease_s)
         for _ in ids:
-            self.metrics.dead_letters.labels("interrupted").inc()
+            self.metrics.observe_dead_letter("interrupted")
         if ids:
             log.warning("sweeper dead-lettered %d stale turn(s): %s", len(ids), ids)
         return ids
@@ -63,6 +75,31 @@ class Runtime:
                 await self.sweep()
             except Exception:
                 log.exception("lease sweep failed; will retry")
+
+    async def run_emf(self, write: Callable[[dict[str, Any]], None] = write_stdout) -> None:
+        """Flush EMF metrics every `emf_interval_s`; refresh DLQ depth once a minute."""
+        assert self.emf is not None
+        pending: int | None = None
+        last_count = float("-inf")
+        while True:
+            await asyncio.sleep(self.settings.emf_interval_s)
+            if time.monotonic() - last_count >= 60:
+                # Its own try: a failing store must not stop ActiveCalls from flushing.
+                # Advance last_count either way so a failure retries once a minute.
+                last_count = time.monotonic()
+                try:
+                    pending = (await self.store.dead_letter_counts())["pending"]
+                except Exception:
+                    log.exception("DLQ depth refresh failed; reporting the last value")
+            try:
+                for doc in self.emf.flush(
+                    active_calls=self.calls.active(),
+                    in_flight=self.calls.in_flight,
+                    dlq_pending=pending,
+                ):
+                    write(doc)
+            except Exception:
+                log.exception("EMF flush failed; will retry")
 
     async def close(self) -> None:
         if self._client is not None:
@@ -125,7 +162,7 @@ async def open_runtime(
     `recover=False` is for tools (the CLI) that open the database while the service
     may be running: only the service may reclaim in-flight work.
     """
-    store = await Store.open(settings.db_path)
+    store = await open_store(settings)
     try:
         return await _wire(settings, store, providers=providers, client=client, recover=recover)
     except BaseException:
@@ -141,10 +178,18 @@ async def _wire(
     client: httpx.AsyncClient | None,
     recover: bool,
 ) -> Runtime:
-    recovered = await store.recover() if recover else []
-    metrics = Metrics()
+    # A shared store (DynamoDB) is used by other live tasks: at startup reclaim only
+    # work that has outlived the lease, never another task's in-flight turns.
+    stale_after = lease_seconds(settings) if store.shared else None
+    recovered = await store.recover(stale_after_s=stale_after) if recover else []
+    emf = (
+        EmfReporter(namespace=settings.emf_namespace, service=settings.emf_service_name)
+        if settings.emf_enabled
+        else None
+    )
+    metrics = Metrics(emf=emf)
     for _ in recovered:
-        metrics.dead_letters.labels("interrupted").inc()
+        metrics.observe_dead_letter("interrupted")
 
     owned_client = None
     if providers is None:
@@ -173,5 +218,7 @@ async def _wire(
         pipeline=pipeline,
         dlq=dlq,
         recovered_dead_letters=recovered,
+        calls=CallTracker(settings.call_idle_s),
+        emf=emf,
         _client=owned_client,
     )

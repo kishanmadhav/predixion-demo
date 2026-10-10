@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from voice_agent.cli import main
-from voice_agent.store import Store
+from voice_agent.cli import build_parser, main
+from voice_agent.store import SqliteStore
 
 
 @pytest.fixture
@@ -15,7 +15,7 @@ def db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.chdir(tmp_path)  # keep any developer .env out of the test
 
     async def seed() -> None:
-        store = await Store.open(path)
+        store = await SqliteStore.open(path)
         await store.begin_turn("call-1", "t1", {"audio_b64": "aGk="})
         await store.degrade_turn(
             "call-1",
@@ -68,7 +68,7 @@ def test_cli_replay_never_reclaims_the_services_in_flight_turns(
     from tests.fakes import fake_providers
 
     async def live_turn() -> None:
-        store = await Store.open(db)
+        store = await SqliteStore.open(db)
         await store.begin_turn("live-call", "t1", {"audio_b64": "aGk="})  # service is mid-turn
         await store.close()
 
@@ -80,10 +80,33 @@ def test_cli_replay_never_reclaims_the_services_in_flight_turns(
     assert "resolved" in capsys.readouterr().out
 
     async def check() -> None:
-        store = await Store.open(db)
+        store = await SqliteStore.open(db)
         turn = await store.get_turn("live-call", "t1")
         assert turn is not None and turn.status == "in_progress"  # left alone
         assert [d.status for d in await store.list_dead_letters()] == ["resolved"]
         await store.close()
 
     asyncio.run(check())
+
+
+def test_chaos_proxy_command_defaults() -> None:
+    args = build_parser().parse_args(["chaos-proxy"])
+    assert args.host == "0.0.0.0"
+    assert args.port == 8080
+
+
+def test_serve_keepalive_exceeds_alb_idle_timeout(
+    db: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import argparse
+
+    import uvicorn
+
+    from voice_agent.cli import _serve
+
+    captured: dict[str, object] = {}
+    monkeypatch.setattr("voice_agent.api.create_app", lambda settings: object())
+    monkeypatch.setattr(uvicorn, "run", lambda app, **kw: captured.update(kw))
+    _serve(argparse.Namespace(host=None, port=None))
+    keep_alive = captured["timeout_keep_alive"]
+    assert isinstance(keep_alive, int) and keep_alive > 60

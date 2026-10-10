@@ -1,0 +1,101 @@
+# One A10G shared by three containers. VRAM budget (~22.5 GiB usable):
+# vLLM 70% (~15.7 GiB: 5.5 GB AWQ weights + KV cache), Speaches the rest.
+x-gpu: &gpu
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            device_ids: ["0"]
+            capabilities: [gpu]
+
+services:
+  vllm:
+    image: ${vllm_image}
+    <<: *gpu
+    ipc: host
+    restart: unless-stopped
+    command:
+      - --model
+      - ${llm_hf_model}
+      - --served-model-name
+      - ${llm_model}
+      - --quantization
+      - awq_marlin
+      - --gpu-memory-utilization
+      - "0.70"
+      - --max-model-len
+      - "8192"
+      - --max-num-seqs
+      - "16"
+      - --port
+      - "8000"
+    volumes:
+      - /opt/hf/vllm:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 120
+      start_period: 60s
+    logging:
+      driver: awslogs
+      options: { awslogs-group: "${log_group}", awslogs-region: "${region}", awslogs-stream: vllm }
+
+  speaches:
+    image: ${speaches_image}
+    <<: *gpu
+    restart: unless-stopped
+    depends_on:
+      vllm: { condition: service_healthy } # vLLM sizes its cache from free VRAM: start it first
+    environment:
+      WHISPER__TTL: "-1" # keep the STT model loaded (default: unload after 5 min idle)
+      WHISPER__INFERENCE_DEVICE: cuda
+      WHISPER__COMPUTE_TYPE: float16
+    volumes:
+      - /opt/hf/speaches:/home/ubuntu/.cache/huggingface/hub
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 80
+      start_period: 30s
+    logging:
+      driver: awslogs
+      options: { awslogs-group: "${log_group}", awslogs-region: "${region}", awslogs-stream: speaches }
+
+  # Speaches does not preload models: install them through its API, then load the TTS model
+  # with one short request. The chaos proxy (and so the NLB health check) waits for this.
+  speaches-models:
+    image: ${speaches_image}
+    restart: "no"
+    depends_on:
+      speaches: { condition: service_healthy }
+    entrypoint:
+      - sh
+      - -c
+      - >-
+        curl -fsS -X POST http://speaches:8000/v1/models/${stt_model} &&
+        curl -fsS -X POST http://speaches:8000/v1/models/${tts_model} &&
+        curl -fsS -o /dev/null http://speaches:8000/v1/audio/speech -H 'content-type: application/json'
+        -d '{"model":"${tts_model}","voice":"af_heart","input":"Ready.","response_format":"wav"}'
+    logging:
+      driver: awslogs
+      options: { awslogs-group: "${log_group}", awslogs-region: "${region}", awslogs-stream: speaches-models }
+
+  chaos-proxy:
+    image: ${proxy_image}
+    restart: unless-stopped
+    command: ["voice-agent", "chaos-proxy", "--host", "0.0.0.0", "--port", "8080"]
+    environment:
+      PROXY_LLM_UPSTREAM: http://vllm:8000
+      PROXY_AUDIO_UPSTREAM: http://speaches:8000
+      MOCK_FAILURE_RATE: "${failure_rate}"
+    ports:
+      - "8080:8080"
+    depends_on:
+      vllm: { condition: service_started }
+      speaches-models: { condition: service_completed_successfully }
+    logging:
+      driver: awslogs
+      options: { awslogs-group: "${log_group}", awslogs-region: "${region}", awslogs-stream: chaos-proxy }

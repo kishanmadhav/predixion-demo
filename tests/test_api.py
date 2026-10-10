@@ -7,7 +7,7 @@ import pytest
 
 from tests.fakes import FakeLlm, FakeStt, FakeTts, fake_providers, fast_settings
 from voice_agent.api import create_app
-from voice_agent.wiring import open_runtime
+from voice_agent.wiring import Runtime, open_runtime
 
 AUDIO = base64.b64encode(b"hello").decode()
 
@@ -139,7 +139,33 @@ async def test_health_stays_up_while_a_provider_is_down(ctx: Ctx) -> None:
     body = r.json()
     assert body["breakers"]["tts"]["state"] == "open"
     assert body["breakers"]["stt"]["state"] == "closed"
-    assert body["dead_letters"]["pending"] == 3
+    assert "dead_letters" not in body  # counts live on GET /v1/dlq, off the health path
+    counts = (await client.get("/v1/dlq", params={"limit": 1})).json()["counts"]
+    assert counts["pending"] == 3
+
+
+class _UnreachableStore:
+    """Every store call fails, as during a DynamoDB brownout."""
+
+    def __getattr__(self, name: str) -> object:
+        raise AssertionError(f"/health must not touch the store (called {name})")
+
+
+async def test_health_never_touches_the_store(tmp_path: Path) -> None:
+    providers, *_ = fake_providers()
+    runtime = await open_runtime(fast_settings(tmp_path), providers=providers)
+    real_store = runtime.store
+    runtime.store = _UnreachableStore()  # type: ignore[assignment]
+    try:
+        transport = httpx.ASGITransport(app=create_app(runtime=runtime))
+        async with httpx.AsyncClient(transport=transport, base_url="http://va") as client:
+            r = await client.get("/health")
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+        assert set(r.json()["breakers"]) == {"stt", "llm", "tts"}
+    finally:
+        runtime.store = real_store
+        await runtime.close()
 
 
 async def test_metrics_expose_retries_breaker_state_and_dead_letters(ctx: Ctx) -> None:
@@ -150,3 +176,40 @@ async def test_metrics_expose_retries_breaker_state_and_dead_letters(ctx: Ctx) -
     assert 'provider_retries_total{stage="llm"} 1.0' in text
     assert 'circuit_breaker_state{stage="llm"} 0.0' in text
     assert 'turns_total{status="completed"} 1.0' in text
+
+
+async def test_oversize_audio_is_rejected_with_422(ctx: Ctx) -> None:
+    client, *_ = ctx
+    too_big = "A" * 300_004  # valid base64, one block over the cap
+    r = await client.post("/v1/calls/c1/turns", json={"turn_id": "t1", "audio_b64": too_big})
+    assert r.status_code == 422
+
+
+@pytest.fixture
+async def rt_ctx(tmp_path: Path) -> AsyncIterator[tuple[httpx.AsyncClient, Runtime]]:
+    providers, *_ = fake_providers()
+    runtime = await open_runtime(fast_settings(tmp_path), providers=providers)
+    transport = httpx.ASGITransport(app=create_app(runtime=runtime))
+    async with httpx.AsyncClient(transport=transport, base_url="http://va") as client:
+        yield client, runtime
+    await runtime.close()
+
+
+async def test_a_call_is_active_after_a_turn_and_not_after_end(
+    rt_ctx: tuple[httpx.AsyncClient, Runtime],
+) -> None:
+    client, runtime = rt_ctx
+    await client.post("/v1/calls/c9/turns", json={"turn_id": "t1", "audio_b64": "AAAA"})
+    assert runtime.calls.active() == 1
+    r = await client.post("/v1/calls/c9/end")
+    assert r.status_code == 200 and r.json() == {"call_id": "c9", "was_active": True}
+    assert runtime.calls.active() == 0
+    again = await client.post("/v1/calls/c9/end")
+    assert again.json()["was_active"] is False
+
+
+async def test_metrics_exposes_active_calls(ctx: Ctx) -> None:
+    client, *_ = ctx
+    await client.post("/v1/calls/c9/turns", json={"turn_id": "t1", "audio_b64": "AAAA"})
+    body = (await client.get("/metrics")).text
+    assert "active_calls 1.0" in body

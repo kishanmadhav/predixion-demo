@@ -1,0 +1,8 @@
+# Build context is an allow-list: only what the Dockerfile copies.
+*
+!Dockerfile
+!pyproject.toml
+!uv.lock
+!README.md
+!src/
+**/__pycache__

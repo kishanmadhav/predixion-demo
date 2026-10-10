@@ -1,0 +1,60 @@
+{
+  "baseline": {
+    "calls_started": 32,
+    "turns": {
+      "completed": 94,
+      "degraded": 2
+    },
+    "http_failures": 0,
+    "errors": {
+      "llm:server_error": 1,
+      "tts:server_error": 1
+    },
+    "latency_ms": {
+      "p50": 6920,
+      "p90": 12772,
+      "p99": 26157,
+      "max": 26157
+    }
+  },
+  "spike": {
+    "calls_started": 118,
+    "turns": {
+      "completed": 294,
+      "degraded": 60
+    },
+    "http_failures": 0,
+    "errors": {
+      "stt:malformed": 1,
+      "stt:server_error": 3,
+      "tts:server_error": 4,
+      "llm:malformed": 1,
+      "stt:timeout": 9,
+      "llm:server_error": 27,
+      "llm:circuit_open": 4,
+      "tts:timeout": 4,
+      "stt:circuit_open": 5,
+      "llm:timeout": 2
+    },
+    "latency_ms": {
+      "p50": 10512,
+      "p90": 24800,
+      "p99": 36203,
+      "max": 36578
+    }
+  },
+  "cooldown": {
+    "calls_started": 24,
+    "turns": {
+      "completed": 72
+    },
+    "http_failures": 0,
+    "errors": {},
+    "latency_ms": {
+      "p50": 9078,
+      "p90": 21508,
+      "p99": 38492,
+      "max": 38492
+    }
+  }
+}

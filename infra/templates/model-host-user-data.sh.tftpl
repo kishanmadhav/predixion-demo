@@ -1,0 +1,54 @@
+#!/bin/bash
+# Model host bootstrap: the models + chaos proxy under docker compose.
+# gpu: Deep Learning AMI (driver, Docker, NVIDIA toolkit preinstalled). cpu: plain AL2023.
+set -euo pipefail
+exec > >(tee -a /var/log/collections-bootstrap.log) 2>&1
+echo "bootstrap start $(date -Is)"
+
+%{ if !gpu ~}
+dnf install -y docker
+%{ endif ~}
+systemctl enable --now docker
+%{ if gpu ~}
+if ! docker info 2>/dev/null | grep -qi nvidia; then
+  nvidia-ctk runtime configure --runtime=docker
+  systemctl restart docker
+fi
+%{ endif ~}
+if ! docker compose version >/dev/null 2>&1; then
+  mkdir -p /usr/local/lib/docker/cli-plugins
+  curl -fsSL "https://github.com/docker/compose/releases/download/${compose_version}/docker-compose-linux-x86_64" \
+    -o /usr/local/lib/docker/cli-plugins/docker-compose
+  chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+fi
+
+mkdir -p /opt/collections /opt/hf/vllm /opt/hf/llama /opt/hf/speaches
+chmod 777 /opt/hf/speaches   # speaches runs as a non-root user
+cat > /opt/collections/compose.yaml <<'COMPOSE'
+${compose}
+COMPOSE
+
+aws ecr get-login-password --region ${region} | docker login --username AWS --password-stdin ${registry}
+cd /opt/collections
+docker compose pull --quiet
+docker compose up -d
+%{ if gpu ~}
+nvidia-smi || true
+%{ endif ~}
+
+for i in $(seq 1 180); do
+  if curl -fsS localhost:8080/ready >/dev/null 2>&1; then
+    echo "models ready after $((i * 10))s"
+%{ if gpu ~}
+    nvidia-smi --query-gpu=memory.used,memory.total --format=csv
+%{ else ~}
+    free -m
+    docker stats --no-stream
+%{ endif ~}
+    exit 0
+  fi
+  sleep 10
+done
+echo "models NOT ready after 30 min"
+docker compose ps
+exit 1

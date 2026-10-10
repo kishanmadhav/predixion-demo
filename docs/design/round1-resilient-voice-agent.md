@@ -1,6 +1,6 @@
 # Resilient Collections Voice-Agent — Design
 
-Date: 2026-10-05 · Status: approved (architecture), building
+Date: 2026-10-05 · Status: implemented (Round 1)
 
 ## Goal
 

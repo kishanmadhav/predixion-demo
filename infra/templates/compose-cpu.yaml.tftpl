@@ -1,0 +1,92 @@
+# CPU fallback (no GPU quota): 8 cores shared by three containers.
+# llama.cpp gets ${llm_threads} threads and ${llm_parallel} parallel slots (continuous batching);
+# Speaches (faster-whisper int8 + Kokoro ONNX) and the chaos proxy share the rest.
+services:
+  llama:
+    image: ${llama_image}
+    restart: unless-stopped
+    environment:
+      LLAMA_CACHE: /cache
+    command:
+      - -hf
+      - ${llm_gguf}
+      - --alias
+      - ${llm_model}
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --threads
+      - "${llm_threads}"
+      - --parallel
+      - "${llm_parallel}"
+      - --ctx-size
+      - "${llm_parallel * 2048}"
+    volumes:
+      - /opt/hf/llama:/cache
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 80
+      start_period: 30s
+    logging:
+      driver: awslogs
+      options: { awslogs-group: "${log_group}", awslogs-region: "${region}", awslogs-stream: llama }
+
+  speaches:
+    image: ${speaches_image}
+    restart: unless-stopped
+    environment:
+      WHISPER__TTL: "-1" # keep the STT model loaded (default: unload after 5 min idle)
+      WHISPER__INFERENCE_DEVICE: cpu
+      WHISPER__COMPUTE_TYPE: int8
+      WHISPER__NUM_WORKERS: "2" # default 1 serializes transcriptions
+      WHISPER__CPU_THREADS: "2"
+    volumes:
+      - /opt/hf/speaches:/home/ubuntu/.cache/huggingface/hub
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 80
+      start_period: 30s
+    logging:
+      driver: awslogs
+      options: { awslogs-group: "${log_group}", awslogs-region: "${region}", awslogs-stream: speaches }
+
+  # Speaches does not preload models: install them through its API, then load the TTS model
+  # with one short request. The chaos proxy (and so the NLB health check) waits for this.
+  speaches-models:
+    image: ${speaches_image}
+    restart: "no"
+    depends_on:
+      speaches: { condition: service_healthy }
+    entrypoint:
+      - sh
+      - -c
+      - >-
+        curl -fsS -X POST http://speaches:8000/v1/models/${stt_model} &&
+        curl -fsS -X POST http://speaches:8000/v1/models/${tts_model} &&
+        curl -fsS -o /dev/null http://speaches:8000/v1/audio/speech -H 'content-type: application/json'
+        -d '{"model":"${tts_model}","voice":"af_heart","input":"Ready.","response_format":"wav"}'
+    logging:
+      driver: awslogs
+      options: { awslogs-group: "${log_group}", awslogs-region: "${region}", awslogs-stream: speaches-models }
+
+  chaos-proxy:
+    image: ${proxy_image}
+    restart: unless-stopped
+    command: ["voice-agent", "chaos-proxy", "--host", "0.0.0.0", "--port", "8080"]
+    environment:
+      PROXY_LLM_UPSTREAM: http://llama:8000
+      PROXY_AUDIO_UPSTREAM: http://speaches:8000
+      MOCK_FAILURE_RATE: "${failure_rate}"
+    ports:
+      - "8080:8080"
+    depends_on:
+      llama: { condition: service_started }
+      speaches-models: { condition: service_completed_successfully }
+    logging:
+      driver: awslogs
+      options: { awslogs-group: "${log_group}", awslogs-region: "${region}", awslogs-stream: chaos-proxy }
